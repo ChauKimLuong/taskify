@@ -1,19 +1,35 @@
 doctype html
 html
     head
+        meta(charset="UTF-8")
+        meta(name="viewport" content="width=device-width, initial-scale=1.0")
         title= title
+        link(rel="stylesheet" href="/css/auth.css")
+
     body
-        h1 Register Pageeeeeeee
+        .container
+            .auth-box
+                h1.title Create account
+                p.subtitle Sign up to continue
 
-        form(method="POST" action="/register")
-            div
-                label Email
-                input(type="email" name="email", required)
+                form(method="POST" action="/register")
+                    .form-group
+                        label Email
+                        input(type="email" name="email" placeholder="you@company.com" required)
 
-            div
-                label Password
-                input(type="password" name="password", required)
+                    .form-group
+                        label Password
+                        input(type="password" name="password" placeholder="Enter password" required)
 
-            button(type="submit") Register
+                    button.btn(type="submit") Sign up
 
-        a(href="/login") Go to Login
+                .divider
+                    span Or continue with
+
+                a.btn-google(href="/auth/google")
+                    img(src="https://developers.google.com/identity/images/g-logo.png")
+                    |  Google
+
+                p.switch
+                    | Already have an account?
+                    a(href="/login") Log in

@@ -56,8 +56,6 @@ exports.postLogin = async (req, res) => {
 
 
 
-
-
 // [GET] /register
 exports.getRegister = (req, res) => {
   res.render('client/pages/auth/register', {
