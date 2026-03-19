@@ -1,0 +1,116 @@
+/* Layout */
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  background: #fff;
+  border-right: 1px solid var(--border);
+  padding: 20px;
+}
+
+.logo {
+  margin-bottom: 30px;
+}
+
+.menu li {
+  list-style: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.menu li.active,
+.menu li:hover {
+  background: #e9f2ff;
+  color: var(--primary);
+}
+
+/* Main */
+.main {
+  flex: 1;
+  padding: 20px 30px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.search {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+/* Top */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Cards */
+.cards {
+  display: flex;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.card {
+  flex: 1;
+  padding: 20px;
+  border-radius: 12px;
+  color: #fff;
+}
+
+.card.green {
+  background: linear-gradient(135deg, #1abc9c, #16a085);
+}
+
+.card.orange {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+}
+
+.card.purple {
+  background: linear-gradient(135deg, #6c5ce7, #8e44ad);
+}
+
+/* Create box */
+.create-box {
+  border: 2px dashed var(--border);
+  padding: 30px;
+  text-align: center;
+  border-radius: 12px;
+  color: var(--subtext);
+}
+
+/* Tasks */
+.tasks {
+  margin-top: 30px;
+}
+
+.task {
+  background: #fff;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.progress {
+  height: 6px;
+  background: #eee;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.progress div {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+}

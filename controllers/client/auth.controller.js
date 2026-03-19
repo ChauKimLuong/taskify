@@ -21,13 +21,13 @@ exports.postLogin = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.redirect('/login');
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.redirect('/login');
     }
 
     // 🔐 Tạo token
@@ -44,9 +44,7 @@ exports.postLogin = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
     });
 
-    res.json({
-      message: "Login successful",
-    });
+    res.redirect('/');
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -56,14 +54,14 @@ exports.postLogin = async (req, res) => {
 
 
 
-// [GET] /register
+// [GET] /sign-up
 exports.getRegister = (req, res) => {
   res.render('client/pages/auth/register', {
     title: 'Register'
   });
 };
 
-// [POST] /register
+// [POST] /sign-up
 exports.postRegister = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -74,8 +72,8 @@ exports.postRegister = async (req, res) => {
     });
 
     if (existingUser) {
-      console.log('⚠️ Email already exists');
-      return res.send('Email already exists');
+      console.log("Email already exists");
+      return res.redirect('/sign-up');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -91,6 +89,6 @@ exports.postRegister = async (req, res) => {
     res.redirect('/login');
   } catch (error) {
     console.error('Register error:', error);
-    res.send('Register failed');
+    res.redirect('/sign-up');
   }
 };

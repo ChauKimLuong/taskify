@@ -1,25 +1,64 @@
 doctype html
 html
     head
-        title= title
-        style.
-            body { font-family: Arial; margin: 0; display: flex; }
-            .sidebar { width: 220px; background: #f4f5f7; padding: 20px; }
-            .content { flex: 1; padding: 20px; }
-            .header { background: #e9d8fd; padding: 20px; border-radius: 10px; }
+        meta(charset="UTF-8")
+        meta(name="viewport" content="width=device-width, initial-scale=1.0")
+        title Home
+        link(rel="stylesheet" href="/css/main.css")
 
     body
-        .sidebar
-            h3 Menu
-            ul
-                li Home
-                li Tasks
-                li Settings
+        .app
+            // Sidebar
+            aside.sidebar
+                h2.logo Taskify
 
-        .content
-            .header
-                h2 Xin chào #{user.name}
-                p Welcome to Taskify 🚀
+                ul.menu
+                    li.active Dashboard
+                    li Projects
+                    li Teams
+                    li Calendar
+                    li Reports
+                    li Settings
 
-            h3 Công việc của bạn
-            p (Demo thôi 😄)
+            // Main
+            .main
+                // Header
+                include ../../partials/header
+                header.header
+                    h3 Hello, #{user.full_name}
+                    input.search(type="text" placeholder="Search...")
+
+                // Content
+                .content
+                    .top
+                        h2 My Workspace
+                        button.btn Create Project
+
+                    .cards
+                        .card.green
+                            h3 Mobile App
+                            p 4 members
+
+                        .card.orange
+                            h3 MEDAPP
+                            p 6 members
+
+                        .card.purple
+                            h3 Website Redesign
+                            p 2 members
+
+                    .create-box
+                        p + Create new project
+
+                    .tasks
+                        h3 Ongoing
+
+                        .task
+                            span API Documentation
+                            .progress
+                                div(style="width:75%")
+
+                        .task
+                            span Payment Security Check
+                            .progress
+                                div(style="width:30%")

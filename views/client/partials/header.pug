@@ -1,0 +1,16 @@
+header.header
+    .header-left
+        input.search(type="text" placeholder="Tìm kiếm")
+
+    .header-right
+        button.create-btn + Tạo
+
+        .icons
+            span.icon 🔔
+            span.icon ❓
+            span.icon ⚙️
+
+        // 👇 nút logout
+        a.btn(href="/logout") Đăng xuất
+
+        .avatar #{user.userId}

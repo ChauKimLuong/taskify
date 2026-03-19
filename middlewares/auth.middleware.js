@@ -1,25 +1,29 @@
 const jwt = require("jsonwebtoken");
+const prisma = require('../config/prisma');
 
-const authMiddleware = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.redirect("/login");
+  }
+
   try {
-    const token = req.cookies.token;
-
-    if (!token) {
-      return res.status(401).json({
-        message: "Unauthorized",
-      });
-    }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log(decoded);
 
-    req.user = decoded;
-
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      message: "Invalid token",
+    const user = await prisma.users.findUnique({
+      where: { id: decoded.userId },
     });
+    if (!user) {
+      return res.redirect("/login");
+    }
+    res.locals.user = user;
+    console.log(res.locals.user); 
+  
+    next();
+  } catch (err) {
+    return res.redirect("/login");
   }
 };
 
-module.exports = authMiddleware;
+module.exports = requireAuth;
