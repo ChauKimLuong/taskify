@@ -1,19 +1,30 @@
+require('dotenv').config();
 const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+
 const app = express();
 
-const bodyParser = require('body-parser');
-require('dotenv').config();
+// body parser
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// set pug
-app.set("view engine", "pug");
-app.set("views", "./views");
+// cookie
+app.use(cookieParser());
 
-// set routes
-app.get("/", (req, res) => {
-    res.render("index");
-});
+// static file
+app.use(express.static(path.join(__dirname, 'public')));
 
+// view engine (PUG)
+app.set('view engine', 'pug');
+app.set('views', path.join(__dirname, 'views'));
 
-app.listen(3000, () => {
-  console.log('Server running at http://localhost:3000');
+// routes
+const route = require('./routes');
+route(app);
+
+// start server
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
 });
