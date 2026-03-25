@@ -3,12 +3,24 @@
 const prisma = require('../../config/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require("jsonwebtoken");
+const { AVAILABLE_ROLES, getDashboardPathByRole, normalizeRole } = require('../../helpers/role.helper');
 
 // [GET] /login
 exports.getLogin = (req, res) => {
   res.render('client/pages/auth/login', {
-    title: 'Login'
+    title: 'Login',
+    error: req.query.error || ''
   });
+};
+
+// [GET] /logout
+exports.logout = (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: false
+  });
+
+  return res.redirect('/login');
 };
 
 
@@ -21,13 +33,13 @@ exports.postLogin = async (req, res) => {
     });
 
     if (!user) {
-      return res.redirect('/login');
+      return res.redirect('/login?error=invalid_credentials');
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.redirect('/login');
+      return res.redirect('/login?error=invalid_credentials');
     }
 
     // 🔐 Tạo token
@@ -44,7 +56,7 @@ exports.postLogin = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
     });
 
-    res.redirect('/');
+    res.redirect(getDashboardPathByRole(user.role));
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -80,7 +92,8 @@ exports.postRegister = async (req, res) => {
     const newUser = await prisma.users.create({
       data: {
         email,
-        password: hashedPassword
+        password: hashedPassword,
+        role: AVAILABLE_ROLES.MEMBER
       }
     });
 
@@ -90,5 +103,46 @@ exports.postRegister = async (req, res) => {
   } catch (error) {
     console.error('Register error:', error);
     res.redirect('/sign-up');
+  }
+};
+
+// [POST] /pm/users/:id/role
+exports.updateUserRole = async (req, res) => {
+  try {
+    const targetUserId = Number(req.params.id);
+    const nextRole = normalizeRole(req.body.role);
+    const allowedRoles = [AVAILABLE_ROLES.TEAM_LEADER, AVAILABLE_ROLES.MEMBER];
+
+    if (!targetUserId || !allowedRoles.includes(nextRole)) {
+      return res.redirect('/pm/dashboard?roleUpdate=invalid');
+    }
+
+    const targetUser = await prisma.users.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!targetUser) {
+      return res.redirect('/pm/dashboard?roleUpdate=not_found');
+    }
+
+    if (targetUser.id === res.locals.user.id) {
+      return res.redirect('/pm/dashboard?roleUpdate=self_locked');
+    }
+
+    if (normalizeRole(targetUser.role) === AVAILABLE_ROLES.PROJECT_MANAGER) {
+      return res.redirect('/pm/dashboard?roleUpdate=pm_locked');
+    }
+
+    await prisma.users.update({
+      where: { id: targetUserId },
+      data: {
+        role: nextRole,
+      },
+    });
+
+    return res.redirect('/pm/dashboard?roleUpdate=success');
+  } catch (error) {
+    console.error('Update role error:', error);
+    return res.redirect('/pm/dashboard?roleUpdate=error');
   }
 };

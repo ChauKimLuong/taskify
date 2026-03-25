@@ -12,6 +12,10 @@ html
                 h1.title Welcome back
                 p.subtitle Log in to continue
 
+                if error === 'invalid_credentials'
+                    .error-message(style="margin-bottom: 16px; padding: 12px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 14px;")
+                        | Sai email hoặc mật khẩu
+
                 form(method="POST" action="/login")
                     .form-group
                         label Email

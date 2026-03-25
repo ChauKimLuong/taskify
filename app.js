@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const { ensureProjectManagerAccount } = require('./services/bootstrap.service');
 
 const app = express();
 
@@ -23,8 +24,18 @@ app.set('views', path.join(__dirname, 'views'));
 const route = require('./routes');
 route(app);
 
-// start server
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await ensureProjectManagerAccount();
+
+    const PORT = 3000;
+    app.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
