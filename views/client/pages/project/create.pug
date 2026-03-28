@@ -1,0 +1,70 @@
+doctype html
+html(lang="en" class="scroll-smooth")
+  head
+    meta(charset="utf-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title= title + ' | Taskify'
+    script(src="https://cdn.tailwindcss.com?plugins=forms,container-queries")
+    link(href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet")
+    link(href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet")
+    script.
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-low": "#f3f4f5",
+              "surface": "#f8f9fa",
+              "primary-container": "#2563eb",
+              "primary": "#004ac6",
+              "on-surface": "#191c1d",
+              "on-surface-variant": "#434655",
+              "outline-variant": "#c3c6d7",
+              "surface-container-lowest": "#ffffff",
+              "on-primary": "#ffffff"
+            },
+            fontFamily: {
+              headline: ["Manrope", "sans-serif"],
+              body: ["Inter", "sans-serif"]
+            }
+          }
+        }
+      };
+    style.
+      body { font-family: 'Inter', sans-serif; }
+      h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+
+  body(class="bg-surface text-on-surface min-h-screen flex items-center justify-center")
+    .w-full.max-w-xl.p-8
+      //- Back link
+      a(href="/dashboard" class="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors mb-8")
+        span(class="material-symbols-outlined text-lg") arrow_back
+        | Back to Dashboard
+
+      //- Form card
+      div(class="bg-surface-container-lowest rounded-2xl p-8 shadow-lg border border-outline-variant/10")
+        .flex.items-center.gap-3.mb-8
+          div(class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center")
+            span(class="material-symbols-outlined text-primary text-2xl") create_new_folder
+          div
+            h1(class="text-2xl font-bold tracking-tight") Create New Project
+            p(class="text-sm text-on-surface-variant") Set up a new workspace for your team
+
+        form(method="POST" action="/projects/create")
+          .space-y-6
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Project Name
+              input(name="project_name" required class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary transition-all" placeholder="e.g. E-commerce Redesign")
+
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Description
+              textarea(name="description" rows="4" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary resize-none transition-all" placeholder="Describe your project goals and scope...")
+
+            p(class="text-xs text-on-surface-variant bg-surface-container-low p-3 rounded-lg")
+              span(class="material-symbols-outlined text-sm align-middle mr-1") info
+              | You will be automatically assigned as the <strong>Team Leader</strong> of this project.
+
+            button(type="submit" class="w-full py-3.5 bg-gradient-to-r from-primary to-primary-container text-white font-semibold rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.98]") Create Project

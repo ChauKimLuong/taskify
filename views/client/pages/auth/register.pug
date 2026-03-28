@@ -12,7 +12,19 @@ html
                 h1.title Create account
                 p.subtitle Sign up to continue
 
+                if error === 'email_exists'
+                    .error-message(style="margin-bottom: 16px; padding: 12px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 14px;")
+                        | Email already exists
+
+                if error === 'server_error'
+                    .error-message(style="margin-bottom: 16px; padding: 12px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 14px;")
+                        | Something went wrong. Please try again.
+
                 form(method="POST" action="/sign-up")
+                    .form-group
+                        label Full Name
+                        input(type="text" name="full_name" placeholder="Your full name")
+
                     .form-group
                         label Email
                         input(type="email" name="email" placeholder="you@company.com" required)

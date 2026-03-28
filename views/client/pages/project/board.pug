@@ -1,0 +1,387 @@
+doctype html
+html(lang="en" class="scroll-smooth")
+  head
+    meta(charset="utf-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title= title + ' | Taskify'
+    script(src="https://cdn.tailwindcss.com?plugins=forms,container-queries")
+    link(href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet")
+    link(href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet")
+    script(src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js")
+    script.
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-fixed-dim": "#b4c5ff",
+              "surface-container-low": "#f3f4f5",
+              "surface": "#f8f9fa",
+              "surface-tint": "#0053db",
+              "primary-container": "#2563eb",
+              "primary-fixed": "#dbe1ff",
+              "on-error-container": "#93000a",
+              "on-tertiary": "#ffffff",
+              "on-tertiary-container": "#ffede6",
+              "outline": "#737686",
+              "inverse-primary": "#b4c5ff",
+              "error-container": "#ffdad6",
+              "on-secondary": "#ffffff",
+              "secondary-container": "#acbfff",
+              "tertiary-container": "#bc4800",
+              "inverse-surface": "#2e3132",
+              "background": "#f8f9fa",
+              "surface-container-highest": "#e1e3e4",
+              "secondary": "#495c95",
+              "on-primary": "#ffffff",
+              "on-primary-container": "#eeefff",
+              "inverse-on-surface": "#f0f1f2",
+              "tertiary": "#943700",
+              "secondary-fixed-dim": "#b4c5ff",
+              "tertiary-fixed-dim": "#ffb596",
+              "surface-dim": "#d9dadb",
+              "surface-container-high": "#e7e8e9",
+              "surface-bright": "#f8f9fa",
+              "on-error": "#ffffff",
+              "on-surface-variant": "#434655",
+              "outline-variant": "#c3c6d7",
+              "on-surface": "#191c1d",
+              "on-secondary-container": "#394c84",
+              "primary": "#004ac6",
+              "surface-container": "#edeeef",
+              "secondary-fixed": "#dbe1ff",
+              "tertiary-fixed": "#ffdbcd",
+              "surface-container-lowest": "#ffffff",
+              "on-background": "#191c1d",
+              "error": "#ba1a1a",
+              "on-secondary-fixed": "#00174b",
+              "surface-variant": "#e1e3e4",
+              "on-tertiary-fixed": "#360f00",
+              "on-tertiary-fixed-variant": "#7d2d00",
+              "on-primary-fixed": "#00174b",
+              "on-primary-fixed-variant": "#003ea8",
+              "on-secondary-fixed-variant": "#31447b"
+            },
+            fontFamily: {
+              headline: ["Manrope", "sans-serif"],
+              body: ["Inter", "sans-serif"],
+              label: ["Inter", "sans-serif"]
+            },
+            borderRadius: { DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem" }
+          }
+        }
+      };
+    style.
+      body { font-family: 'Inter', sans-serif; }
+      h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #e1e3e4; border-radius: 10px; }
+      .sortable-ghost { opacity: 0.4; }
+      .sortable-chosen { transform: rotate(2deg); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+      .sortable-drag { opacity: 0.9; }
+
+  //- ===== TASK CARD MIXIN (must be defined before use) =====
+  mixin taskCard(task, isDone)
+    - var priorityStyles = { high: 'bg-tertiary-fixed text-on-tertiary-fixed', medium: 'bg-secondary-fixed text-on-secondary-fixed', low: 'bg-surface-container-highest text-on-surface-variant' }
+    - var priorityLabels = { high: 'High Priority', medium: 'Medium', low: 'Low' }
+    div(class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-transparent hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
+      class=isDone ? 'opacity-70' : 'hover:scale-[1.01]'
+      data-task-id=task.id
+    )
+      .flex.justify-between.items-start.mb-3
+        span(class=`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${priorityStyles[task.priority] || priorityStyles.medium}`)= priorityLabels[task.priority] || 'Medium'
+        if isDone
+          span(class="material-symbols-outlined text-primary text-lg") check_circle
+        else
+          span(class="material-symbols-outlined text-slate-300 text-lg cursor-pointer hover:text-slate-500") more_horiz
+      h3(class=`text-sm font-semibold mb-1 text-on-surface ${isDone ? 'line-through' : ''}`)= task.title
+      if task.description
+        p(class="text-xs text-on-surface-variant line-clamp-2 mb-4 leading-relaxed")= task.description
+      div(class="flex items-center justify-between pt-3 border-t border-outline-variant/10")
+        .flex.items-center.gap-3.text-slate-400
+          if task.due_date
+            .flex.items-center.gap-1
+              span(class="material-symbols-outlined text-[16px]") calendar_today
+              span(class="text-[10px] font-medium")= new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          if task.comments && task.comments.length > 0
+            .flex.items-center.gap-1
+              span(class="material-symbols-outlined text-[16px]") chat_bubble
+              span(class="text-[10px] font-medium")= task.comments.length
+        //- Assignee avatars
+        if task.assignees && task.assignees.length > 0
+          .flex.-space-x-2
+            each a, i in task.assignees
+              if i < 2
+                if a.user.avatar_url
+                  img(alt=a.user.full_name class="w-6 h-6 rounded-full border border-white object-cover" src=a.user.avatar_url)
+                else
+                  .w-6.h-6.rounded-full.bg-secondary.flex.items-center.justify-center.text-white.text-xs.font-bold.border.border-white= a.user.full_name ? a.user.full_name.charAt(0).toUpperCase() : a.user.email.charAt(0).toUpperCase()
+
+  body(class="bg-surface text-on-surface overflow-hidden")
+
+    //- ===== SIDEBAR =====
+    aside(class="fixed h-screen w-64 left-0 top-0 flex flex-col p-6 gap-4 bg-surface-container-low z-50")
+      //- Brand
+      .mb-4
+        a(href="/dashboard" class="text-xl font-bold tracking-tight text-blue-700") Taskify
+
+      //- User profile
+      .flex.items-center.gap-3.mb-6.p-2
+        if user.avatar_url
+          img(src=user.avatar_url alt=user.full_name class="w-10 h-10 rounded-full object-cover")
+        else
+          .w-10.h-10.rounded-full.bg-primary.flex.items-center.justify-center.text-white.font-bold.text-sm= user.full_name ? user.full_name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()
+        .flex.flex-col.overflow-hidden
+          span.font-semibold.text-sm.truncate= user.full_name || user.email
+          span(class="text-xs text-on-surface-variant")= membership.project_role === 'team_leader' ? 'Team Leader' : 'Member'
+
+      //- Create new project
+      a(href="/projects/create" class="bg-gradient-to-br from-primary to-primary-container text-white px-4 py-2.5 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:scale-95 transition-transform duration-150 mb-4 shadow-md shadow-primary/20")
+        span(class="material-symbols-outlined text-sm") add
+        | Create New Project
+
+      //- Navigation
+      nav.flex-1.space-y-1
+        a(href="/dashboard" class="flex items-center gap-3 p-3 text-slate-600 font-medium hover:bg-slate-200 transition-colors duration-200 rounded-full group")
+          span(class="material-symbols-outlined text-slate-500 group-hover:text-primary") dashboard
+          span(class="uppercase tracking-[0.05em] text-[0.75rem]") Dashboard
+        a(href=`/projects/${project.id}` class="flex items-center gap-3 p-3 bg-blue-100 text-blue-800 rounded-full font-semibold group")
+          span.material-symbols-outlined folder_open
+          span(class="uppercase tracking-[0.05em] text-[0.75rem]") Projects
+
+      //- Footer
+      div(class="pt-6 border-t border-outline-variant/15 flex flex-col gap-1")
+        a(href="/logout" class="flex items-center gap-3 p-3 text-slate-600 font-medium hover:bg-slate-200 transition-colors duration-200 rounded-full group")
+          span(class="material-symbols-outlined text-slate-500") logout
+          span(class="uppercase tracking-[0.05em] text-[0.75rem]") Logout
+
+    //- ===== HEADER =====
+    header(class="sticky top-0 h-16 ml-64 flex justify-between items-center px-8 bg-white/80 backdrop-blur-md z-40 gap-8")
+      .flex.items-center.gap-4.flex-1
+        nav(class="flex items-center gap-2 text-xs font-medium text-slate-500")
+          a(href="/dashboard" class="hover:text-primary cursor-pointer") Dashboard
+          span(class="material-symbols-outlined text-[14px]") chevron_right
+          span(class="text-on-surface font-semibold")= project.project_name
+        .relative.max-w-md.w-full.ml-4
+          span(class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg") search
+          input(class="w-full bg-surface-container-low border-none rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-primary transition-all" placeholder="Search tasks..." type="text" id="searchTasks")
+
+      .flex.items-center.gap-4
+        .flex.items-center.gap-1
+          a(class="text-blue-700 border-b-2 border-blue-700 pb-1 text-xs font-semibold uppercase tracking-wider" href="#") Board View
+
+    //- ===== MAIN WORKSPACE =====
+    main(class="ml-64 p-8 h-[calc(100vh-4rem)] overflow-hidden flex flex-col")
+
+      //- Board Header
+      .flex.justify-between.items-center.mb-8
+        h1(class="text-2xl font-medium text-on-surface tracking-tight")= project.project_name
+        .flex.items-center.gap-4
+          //- Member avatars
+          .flex.-space-x-3
+            each m, i in project.members
+              if i < 3
+                if m.user.avatar_url
+                  img(alt=m.user.full_name class="w-8 h-8 rounded-full border-2 border-white object-cover" src=m.user.avatar_url)
+                else
+                  .w-8.h-8.rounded-full.bg-primary.flex.items-center.justify-center.text-white.text-xs.font-bold.border-2.border-white= m.user.full_name ? m.user.full_name.charAt(0).toUpperCase() : m.user.email.charAt(0).toUpperCase()
+            if project.members.length > 3
+              .w-8.h-8.rounded-full.bg-primary-fixed.flex.items-center.justify-center.text-xs.font-bold.text-on-primary-fixed.border-2.border-white= '+' + (project.members.length - 3)
+
+          //- Add member (team leader only)
+          if isTeamLeader
+            button(onclick="document.getElementById('addMemberModal').classList.remove('hidden')" class="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-primary/20 transition-colors")
+              span(class="material-symbols-outlined text-sm") person_add
+              | Add Member
+
+      //- ===== KANBAN BOARD =====
+      .flex.gap-6.overflow-x-auto.pb-6.h-full.custom-scrollbar
+
+        //- Column: To Do
+        div(class="flex flex-col w-80 min-w-[20rem] flex-shrink-0")
+          .flex.items-center.justify-between.mb-4.px-2
+            .flex.items-center.gap-2
+              span(class="font-semibold text-sm uppercase tracking-wider") To Do
+              span(class="bg-surface-container-highest px-2 py-0.5 rounded text-[10px] font-bold")= columns.todo.length
+            if isTeamLeader
+              button(onclick="document.getElementById('createTaskModal').classList.remove('hidden'); document.getElementById('taskStatus').value='todo'" class="text-slate-400 hover:text-primary transition-colors")
+                span(class="material-symbols-outlined text-lg") add
+          div(class="flex-1 bg-surface-container-low/50 rounded-2xl p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar" id="column-todo" data-status="todo")
+            each task in columns.todo
+              +taskCard(task)
+
+        //- Column: In Progress
+        div(class="flex flex-col w-80 min-w-[20rem] flex-shrink-0")
+          .flex.items-center.justify-between.mb-4.px-2
+            .flex.items-center.gap-2
+              span(class="font-semibold text-sm uppercase tracking-wider") In Progress
+              span(class="bg-primary text-white px-2 py-0.5 rounded text-[10px] font-bold")= columns.doing.length
+          div(class="flex-1 bg-surface-container-low/50 rounded-2xl p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar" id="column-doing" data-status="doing")
+            each task in columns.doing
+              +taskCard(task)
+
+        //- Column: In Review
+        div(class="flex flex-col w-80 min-w-[20rem] flex-shrink-0")
+          .flex.items-center.justify-between.mb-4.px-2
+            .flex.items-center.gap-2
+              span(class="font-semibold text-sm uppercase tracking-wider") In Review
+              span(class="bg-surface-container-highest px-2 py-0.5 rounded text-[10px] font-bold")= columns.review.length
+          div(class="flex-1 bg-surface-container-low/50 rounded-2xl p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar" id="column-review" data-status="review")
+            each task in columns.review
+              +taskCard(task)
+
+        //- Column: Done
+        div(class="flex flex-col w-80 min-w-[20rem] flex-shrink-0")
+          .flex.items-center.justify-between.mb-4.px-2
+            .flex.items-center.gap-2
+              span(class="font-semibold text-sm uppercase tracking-wider") Done
+              span(class="bg-surface-container-highest px-2 py-0.5 rounded text-[10px] font-bold")= columns.done.length
+          div(class="flex-1 bg-surface-container-low/50 rounded-2xl p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar" id="column-done" data-status="done")
+            each task in columns.done
+              +taskCard(task, true)
+
+    //- ===== CREATE TASK MODAL =====
+    if isTeamLeader
+      #createTaskModal(class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center")
+        .bg-white.rounded-2xl.shadow-2xl.w-full.max-w-lg.p-8
+          .flex.justify-between.items-center.mb-6
+            h2(class="text-xl font-bold") Create New Task
+            button(onclick="document.getElementById('createTaskModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600")
+              span.material-symbols-outlined close
+          form(method="POST" action=`/projects/${project.id}/tasks`)
+            input(type="hidden" name="status" id="taskStatus" value="todo")
+            .space-y-4
+              div
+                label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Task Title
+                input(name="title" required class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary" placeholder="Enter task title")
+              div
+                label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Description
+                textarea(name="description" rows="3" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary resize-none" placeholder="Describe the task...")
+              .grid.grid-cols-3.gap-4
+                div
+                  label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Priority
+                  select(name="priority" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary")
+                    option(value="low") Low
+                    option(value="medium" selected) Medium
+                    option(value="high") High
+                div
+                  label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Start Date
+                  input(type="date" name="start_date" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary")
+                div
+                  label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Due Date
+                  input(type="date" name="due_date" class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary")
+              button(type="submit" class="w-full py-3 bg-gradient-to-r from-primary to-primary-container text-white font-semibold rounded-xl shadow-lg hover:shadow-primary/20 transition-all active:scale-[0.98]") Create Task
+
+    //- ===== ADD MEMBER MODAL =====
+    if isTeamLeader
+      #addMemberModal(class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center")
+        .bg-white.rounded-2xl.shadow-2xl.w-full.max-w-md.p-8
+          .flex.justify-between.items-center.mb-6
+            h2(class="text-xl font-bold") Add Team Member
+            button(onclick="document.getElementById('addMemberModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600")
+              span.material-symbols-outlined close
+          form(method="POST" action=`/projects/${project.id}/members`)
+            .space-y-4
+              div
+                label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Member Email
+                input(name="email" type="email" required class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary" placeholder="Enter email address")
+              button(type="submit" class="w-full py-3 bg-gradient-to-r from-primary to-primary-container text-white font-semibold rounded-xl shadow-lg hover:shadow-primary/20 transition-all active:scale-[0.98]") Add Member
+
+          //- Current members list
+          div(class="mt-6 pt-6 border-t border-outline-variant/20")
+            h3(class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3") Current Members
+            .space-y-2
+              each m in project.members
+                div(class="flex items-center justify-between p-2 rounded-lg hover:bg-surface-container-low")
+                  .flex.items-center.gap-3
+                    if m.user.avatar_url
+                      img(src=m.user.avatar_url class="w-8 h-8 rounded-full object-cover")
+                    else
+                      .w-8.h-8.rounded-full.bg-primary.flex.items-center.justify-center.text-white.text-xs.font-bold= m.user.full_name ? m.user.full_name.charAt(0).toUpperCase() : m.user.email.charAt(0).toUpperCase()
+                    .flex.flex-col
+                      span.text-sm.font-medium= m.user.full_name || m.user.email
+                      span(class="text-xs text-on-surface-variant")= m.project_role === 'team_leader' ? 'Team Leader' : 'Member'
+
+
+
+    //- ===== SORTABLEJS DRAG & DROP SCRIPT =====
+    script.
+      document.addEventListener('DOMContentLoaded', () => {
+        const columns = ['column-todo', 'column-doing', 'column-review', 'column-done'];
+        const projectId = #{project.id};
+        const userRole = '#{membership.project_role}';
+
+        columns.forEach(colId => {
+          const el = document.getElementById(colId);
+          if (!el) return;
+
+          new Sortable(el, {
+            group: 'kanban',
+            animation: 200,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+
+            onEnd: async function(evt) {
+              const taskId = evt.item.dataset.taskId;
+              const newStatus = evt.to.dataset.status;
+
+              // Only team_leader can move to 'done'
+              if (newStatus === 'done' && userRole !== 'team_leader') {
+                // Revert: move the item back
+                evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
+                alert('Only the Team Leader can approve tasks (move to Done).');
+                return;
+              }
+
+              try {
+                const res = await fetch(`/projects/${projectId}/tasks/${taskId}/status`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: newStatus }),
+                });
+
+                if (!res.ok) {
+                  const data = await res.json();
+                  alert(data.error || 'Failed to update task');
+                  location.reload();
+                } else {
+                  // Update column counters
+                  updateColumnCounts();
+                }
+              } catch (err) {
+                console.error('Error updating task:', err);
+                location.reload();
+              }
+            }
+          });
+        });
+
+        function updateColumnCounts() {
+          columns.forEach(colId => {
+            const col = document.getElementById(colId);
+            if (!col) return;
+            const count = col.querySelectorAll('[data-task-id]').length;
+            const badge = col.closest('.flex-col').querySelector('.flex.items-center.gap-2 span:last-child');
+            if (badge) badge.textContent = count;
+          });
+        }
+
+        // Search tasks
+        const searchInput = document.getElementById('searchTasks');
+        if (searchInput) {
+          searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            document.querySelectorAll('[data-task-id]').forEach(card => {
+              const title = card.querySelector('h3')?.textContent?.toLowerCase() || '';
+              const desc = card.querySelector('p')?.textContent?.toLowerCase() || '';
+              card.style.display = (title.includes(query) || desc.includes(query)) ? '' : 'none';
+            });
+          });
+        }
+      });

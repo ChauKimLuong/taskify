@@ -1,49 +1,51 @@
-const { getDashboardPathByRole } = require('../../helpers/role.helper');
 const prisma = require('../../config/prisma');
-const { AVAILABLE_ROLES, normalizeRole } = require('../../helpers/role.helper');
 
-exports.index = (req, res) => {
-  return res.redirect(getDashboardPathByRole(res.locals.user?.role));
-};
+// [GET] /dashboard
+exports.dashboard = async (req, res) => {
+  try {
+    const userId = res.locals.user.id;
 
-exports.projectManagerDashboard = async (req, res) => {
-  const users = await prisma.users.findMany({
-    orderBy: [
-      { created_at: 'desc' },
-      { id: 'desc' },
-    ],
-    select: {
-      id: true,
-      email: true,
-      full_name: true,
-      role: true,
-      created_at: true,
-    },
-  });
+    // Get all projects where user is a member
+    const memberships = await prisma.project_members.findMany({
+      where: { user_id: userId },
+      include: {
+        project: {
+          include: {
+            members: {
+              include: {
+                user: {
+                  select: { id: true, full_name: true, email: true, avatar_url: true },
+                },
+              },
+            },
+            tasks: {
+              select: { id: true, status: true },
+            },
+          },
+        },
+      },
+      orderBy: { joined_at: 'desc' },
+    });
 
-  res.render('client/pages/dashboard/project-manager', {
-    title: 'Project Manager Dashboard',
-    roleUpdateStatus: req.query.roleUpdate || '',
-    users: users.map((user) => ({
-      ...user,
-      normalizedRole: normalizeRole(user.role),
-      canEditRole: normalizeRole(user.role) !== AVAILABLE_ROLES.PROJECT_MANAGER,
-    })),
-    roleOptions: [
-      AVAILABLE_ROLES.TEAM_LEADER,
-      AVAILABLE_ROLES.MEMBER,
-    ],
-  });
-};
+    const projects = memberships.map((m) => {
+      const totalTasks = m.project.tasks.length;
+      const doneTasks = m.project.tasks.filter((t) => t.status === 'done').length;
+      return {
+        ...m.project,
+        role: m.project_role,
+        totalTasks,
+        doneTasks,
+        progress: totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0,
+      };
+    });
 
-exports.teamLeaderDashboard = (req, res) => {
-  res.render('client/pages/dashboard/team-leader', {
-    title: 'Team Leader Dashboard',
-  });
-};
-
-exports.memberKanban = (req, res) => {
-  res.render('client/pages/dashboard/member-kanban', {
-    title: 'Member Kanban',
-  });
+    res.render('client/pages/dashboard/index', {
+      title: 'Dashboard',
+      user: res.locals.user,
+      projects,
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
