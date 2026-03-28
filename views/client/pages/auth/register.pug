@@ -1,47 +1,65 @@
-doctype html
-html
-    head
-        meta(charset="UTF-8")
-        meta(name="viewport" content="width=device-width, initial-scale=1.0")
-        title= title
-        link(rel="stylesheet" href="/css/main.css")
+extends ../../layout-public
 
-    body
-        .container
-            .auth-box
-                h1.title Create account
-                p.subtitle Sign up to continue
+block title
+  | #{title} | Taskify
 
-                if error === 'email_exists'
-                    .error-message(style="margin-bottom: 16px; padding: 12px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 14px;")
-                        | Email already exists
+block body
+  .min-h-screen.flex.items-center.justify-center.p-6
+    //- Decorative background blobs
+    div(class="fixed inset-0 overflow-hidden pointer-events-none")
+      div(class="absolute -top-32 -right-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl")
+      div(class="absolute -bottom-32 -left-32 w-96 h-96 bg-secondary-container/10 rounded-full blur-3xl")
 
-                if error === 'server_error'
-                    .error-message(style="margin-bottom: 16px; padding: 12px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 14px;")
-                        | Something went wrong. Please try again.
+    .w-full.max-w-md.relative.z-10.animate-fade-in-up
+      //- Brand
+      .text-center.mb-8
+        a(href="/" class="text-2xl font-bold tracking-tight text-primary font-headline") Taskify
 
-                form(method="POST" action="/sign-up")
-                    .form-group
-                        label Full Name
-                        input(type="text" name="full_name" placeholder="Your full name")
+      //- Auth card
+      div(class="bg-surface-container-lowest rounded-2xl p-8 shadow-xl shadow-slate-900/5 border border-outline-variant/10")
+        .text-center.mb-8
+          h1(class="text-2xl font-bold tracking-tight mb-2") Create account
+          p(class="text-on-surface-variant text-sm") Sign up to continue
 
-                    .form-group
-                        label Email
-                        input(type="email" name="email" placeholder="you@company.com" required)
+        //- Error banners
+        if error === 'email_exists'
+          div(class="mb-6 px-4 py-3 rounded-[10px] bg-error-container/40 border border-error/20 text-on-error-container text-sm flex items-center gap-2 animate-fade-in")
+            span(class="material-symbols-outlined text-lg text-error") error
+            | Email already exists
 
-                    .form-group
-                        label Password
-                        input(type="password" name="password" placeholder="Enter password" required)
+        if error === 'server_error'
+          div(class="mb-6 px-4 py-3 rounded-[10px] bg-error-container/40 border border-error/20 text-on-error-container text-sm flex items-center gap-2 animate-fade-in")
+            span(class="material-symbols-outlined text-lg text-error") error
+            | Something went wrong. Please try again.
 
-                    button.btn(type="submit") Sign up
+        form(method="POST" action="/sign-up")
+          .space-y-5
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 font-label") Full Name
+              input(type="text" name="full_name" placeholder="Your full name" class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all duration-200 placeholder:text-slate-400")
 
-                .divider
-                    span Or continue with
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 font-label") Email
+              input(type="email" name="email" placeholder="you@company.com" required class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all duration-200 placeholder:text-slate-400")
 
-                a.btn-google(href="/auth/google")
-                    img(src="https://developers.google.com/identity/images/g-logo.png")
-                    span Continue with Google
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 font-label") Password
+              input(type="password" name="password" placeholder="Enter password" required class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all duration-200 placeholder:text-slate-400")
 
-                p.switch
-                    | Already have an account? 
-                    a(href="/login") Log in
+            button(type="submit" class="w-full py-3.5 signature-gradient text-white font-bold rounded-[10px] shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:opacity-95 transition-all duration-200 active:scale-[0.98]") Sign up
+
+        //- Divider
+        div(class="flex items-center gap-4 my-6")
+          div(class="flex-1 h-px bg-outline-variant/20")
+          span(class="text-xs text-on-surface-variant font-medium") Or continue with
+          div(class="flex-1 h-px bg-outline-variant/20")
+
+        //- Google button
+        a(href="/auth/google" class="flex items-center justify-center gap-3 w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant/30 rounded-[10px] text-sm font-semibold text-on-surface hover:bg-surface-container-low hover:border-outline-variant/50 hover:shadow-sm transition-all duration-200 active:scale-[0.98]")
+          img(src="https://developers.google.com/identity/images/g-logo.png" class="w-5 h-5 object-contain")
+          span Continue with Google
+
+        //- Switch link
+        p(class="text-center text-sm text-on-surface-variant mt-6")
+          | Already have an account?&nbsp;
+          a(href="/login" class="text-primary font-bold hover:underline underline-offset-2 transition-all") Log in

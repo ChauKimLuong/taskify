@@ -1,25 +1,5 @@
-/* IMPORT */
-@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Roboto+Slab:wght@100..900&family=Roboto:ital,wght@0,100..900;1,100..900&family=Sora:wght@100..800&display=swap');
-
-
-/* BASE */
-@import url('./base/reset.css');
-@import url('./base/variables.css');
-@import url('./base/typography.css');
-
-/* LAYOUT */
-@import url('./layout/container.css');
-@import url('./layout/header.css');
-@import url('./layout/footer.css');
-
-/* COMPONENTS */
-@import url('./components/button.css');
-@import url('./components/input.css');
-@import url('./components/form.css');
-@import url('./components/divider.css');
-
-/* PAGES */
-@import url('./pages/auth.css');
-@import url('./pages/home.css');
-
-
+/* 
+ * Taskify - Main CSS
+ * All styling is now handled by Tailwind CSS via CDN in layout files.
+ * This file is kept as a minimal entry point for any future custom CSS needs.
+ */
