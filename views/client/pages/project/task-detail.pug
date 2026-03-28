@@ -1,0 +1,272 @@
+doctype html
+html(class="light" lang="vi")
+  head
+    meta(charset="utf-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title= task.title + ' | Taskify'
+    script(src="https://cdn.tailwindcss.com?plugins=forms,container-queries")
+    link(href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet")
+    link(href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet")
+    script.
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#ec5b13",
+              "background-light": "#f8f6f6",
+              "background-dark": "#221610",
+            },
+            fontFamily: {
+              display: ["Public Sans", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    style.
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+      .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+  - var taskRef = 'TSK-' + task.id
+  - var pri = task.priority || 'medium'
+  - var statusVi = { todo: 'Cần làm', doing: 'Đang làm', review: 'Đang review', done: 'Hoàn thành' }
+  - var startStr = task.start_date ? new Date(task.start_date).toLocaleDateString('vi-VN', { day: 'numeric', month: 'long' }) : 'Chưa đặt'
+  - var startInput = task.start_date ? new Date(task.start_date).toISOString().slice(0, 10) : ''
+  - var dueStr = task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN', { day: 'numeric', month: 'long' }) : 'Chưa đặt'
+  - var dueInput = task.due_date ? new Date(task.due_date).toISOString().slice(0, 10) : ''
+
+  body(class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased")
+
+    //- Blurred board simulation
+    div(class="fixed inset-0 z-0 overflow-hidden flex flex-col pointer-events-none opacity-40 grayscale")
+      header(class="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center px-8 justify-between")
+        .flex.items-center.gap-4
+          .w-8.h-8.bg-primary.rounded-lg
+          div(class="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded")
+        .flex.gap-4
+          div(class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700")
+          div(class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700")
+      main(class="flex-1 p-8 grid grid-cols-4 gap-6")
+        each col in [1, 2, 3, 4]
+          .space-y-4
+            div(class="h-8 w-24 bg-slate-300 dark:bg-slate-600 rounded")
+            div(class="h-32 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700")
+            if col !== 2
+              div(class="h-24 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700")
+
+    div(class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4")
+      div(class="bg-white dark:bg-slate-900 w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700")
+
+        if queryError
+          div(class="px-6 py-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm border-b border-red-100 dark:border-red-900/40")
+            case queryError
+              when 'assign_failed'
+                | Không gán được thành viên (có thể đã được gán trước đó).
+              when 'not_project_member'
+                | Người được chọn không thuộc dự án.
+              default
+                | Đã có lỗi xảy ra. Vui lòng thử lại.
+
+        header(class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800")
+          .flex.items-center.gap-3
+            span(class="material-symbols-outlined text-slate-400") task_alt
+            span(class="text-sm font-semibold text-slate-500 dark:text-slate-400 tracking-wider")= taskRef
+          a(href=`/projects/${project.id}` class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors group" aria-label="Đóng")
+            span(class="material-symbols-outlined text-slate-500 group-hover:text-primary") close
+
+        div(class="flex flex-1 overflow-hidden")
+          //- Left column
+          div(class="flex-1 overflow-y-auto p-8 custom-scrollbar")
+            .mb-6
+              textarea#taskTitle(class="w-full text-3xl font-extrabold text-slate-900 dark:text-white bg-transparent border-none focus:ring-0 resize-none p-0 leading-tight" rows="2")= task.title
+              .mt-2.flex.gap-2
+                button#saveTitle(type="button" class="px-3 py-1.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90") Lưu tiêu đề
+
+            .flex.flex-wrap.gap-2.mb-8
+              span(class="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full uppercase tracking-wide flex items-center gap-1.5")
+                span(class="material-symbols-outlined text-sm") folder_open
+                = project.project_name
+
+            section.mb-10
+              .flex.items-center.gap-2.mb-3
+                span(class="material-symbols-outlined text-slate-600 dark:text-slate-400") subject
+                h3(class="text-lg font-bold text-slate-800 dark:text-slate-200") Mô tả
+              .group.relative
+                textarea#taskDesc(class="w-full min-h-[160px] p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-slate-400 dark:text-slate-200" placeholder="Thêm mô tả chi tiết công việc tại đây...")= task.description || ''
+                div(class="absolute bottom-3 right-3 flex gap-2 opacity-0 group-focus-within:opacity-100 transition-opacity")
+                  button#saveDesc(type="button" class="px-3 py-1.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90") Lưu
+                  button#cancelDesc(type="button" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-lg") Hủy
+
+            section
+              .flex.items-center.gap-2.mb-6
+                span(class="material-symbols-outlined text-slate-600 dark:text-slate-400") forum
+                h3(class="text-lg font-bold text-slate-800 dark:text-slate-200") Bình luận
+
+              .space-y-6.mb-8
+                each c in task.comments
+                  .flex.gap-4
+                    if c.user.avatar_url
+                      img(alt=c.user.full_name || c.user.email class="w-10 h-10 rounded-full border-2 border-slate-100 dark:border-slate-800 object-cover" src=c.user.avatar_url)
+                    else
+                      div(class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold border-2 border-slate-100 dark:border-slate-800")= (c.user.full_name || c.user.email || '?').charAt(0).toUpperCase()
+                    .flex-1
+                      .flex.items-baseline.gap-2.mb-1
+                        span(class="font-bold text-slate-900 dark:text-white")= c.user.full_name || c.user.email
+                        span(class="text-xs text-slate-400")= formatCommentTime(c.created_at)
+                      div(class="bg-slate-50 dark:bg-slate-800 p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl text-slate-700 dark:text-slate-300 text-sm whitespace-pre-wrap")= c.content
+
+              form(method="POST" action=`/projects/${project.id}/tasks/${task.id}/comments` class="flex gap-4 pt-4 border-t border-slate-100 dark:border-slate-800")
+                if user.avatar_url
+                  img(alt=user.full_name class="w-10 h-10 rounded-full border-2 border-primary/20 object-cover" src=user.avatar_url)
+                else
+                  div(class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold border-2 border-primary/20")= (user.full_name || user.email || '?').charAt(0).toUpperCase()
+                .flex-1.relative
+                  input(name="content" class="w-full h-12 px-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-primary focus:border-primary pr-12" placeholder="Thêm comment..." type="text" required autocomplete="off")
+                  button(type="submit" aria-label="Gửi" class="absolute right-2 top-2 p-1.5 text-primary hover:bg-primary/10 rounded-lg")
+                    span.material-symbols-outlined send
+
+          //- Right sidebar
+          aside(class="w-72 bg-slate-50/50 dark:bg-slate-800/30 border-l border-slate-100 dark:border-slate-800 p-6 overflow-y-auto custom-scrollbar")
+            .mb-8
+              h4(class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4") Thao tác
+              .space-y-2
+                if isTeamLeader && assignCandidates.length
+                  form.space-y-2(method="POST" action=`/projects/${project.id}/tasks/${task.id}/assign`)
+                    label(class="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm")
+                      span(class="material-symbols-outlined text-lg text-slate-500") person_add
+                      select(name="assignee_id" class="flex-1 bg-transparent border-none text-sm focus:ring-0 cursor-pointer" required onchange="this.form.submit()")
+                        option(value="" disabled selected) Gán người thực hiện…
+                        each m in assignCandidates
+                          option(value=m.user_id)= m.user.full_name || m.user.email
+                else
+                  button(type="button" disabled class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/60 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-400 cursor-not-allowed shadow-sm")
+                    span(class="material-symbols-outlined text-lg") person_add
+                    | Gán người thực hiện
+                button(type="button" disabled class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/60 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-400 cursor-not-allowed shadow-sm" title="Sắp có")
+                  span(class="material-symbols-outlined text-lg text-slate-400") sell
+                  | Thêm nhãn
+                .flex.flex-col.gap-2
+                  label(class="text-xs font-semibold text-slate-500 dark:text-slate-400") Ngày bắt đầu
+                  div(class="flex items-center gap-2 text-slate-700 dark:text-slate-200 mb-1")
+                    span(class="material-symbols-outlined text-slate-400 text-lg") event
+                    span#startDisplay(class="text-sm font-semibold")= startStr
+                  .flex.items-center.gap-2
+                    input#startInput(type="date" value=startInput class="flex-1 text-sm rounded-lg border-slate-200 dark:border-slate-700 dark:bg-slate-800")
+                    button#saveStart(type="button" class="px-2 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shrink-0") Lưu
+                .flex.flex-col.gap-2.mt-3
+                  label(class="text-xs font-semibold text-slate-500 dark:text-slate-400") Hạn chót
+                  div(class="flex items-center gap-2 text-slate-700 dark:text-slate-200 mb-1")
+                    span(class="material-symbols-outlined text-slate-400 text-lg") calendar_month
+                    span#dueDisplay(class="text-sm font-semibold")= dueStr
+                  .flex.items-center.gap-2
+                    input#dueInput(type="date" value=dueInput class="flex-1 text-sm rounded-lg border-slate-200 dark:border-slate-700 dark:bg-slate-800")
+                    button#saveDue(type="button" class="px-2 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shrink-0") Lưu
+                button(type="button" disabled class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/60 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-400 cursor-not-allowed shadow-sm mt-2" title="Sắp có")
+                  span(class="material-symbols-outlined text-lg text-slate-400") attach_file
+                  | Đính kèm tệp
+
+            .mb-8
+              h4(class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4") Thành viên
+              if task.assignees.length
+                .flex.-space-x-2.flex-wrap.gap-y-2
+                  each a, i in task.assignees
+                    if i < 4
+                      if a.user.avatar_url
+                        img(alt=a.user.full_name class="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 object-cover" src=a.user.avatar_url)
+                      else
+                        div(class="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-600 border-2 border-white dark:border-slate-900 flex items-center justify-center text-xs font-bold")= (a.user.full_name || a.user.email).charAt(0).toUpperCase()
+                  if task.assignees.length > 4
+                    div(class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] font-bold text-slate-500")= '+' + (task.assignees.length - 4)
+              else
+                p(class="text-sm text-slate-500") Chưa có người được gán.
+
+            .mb-8
+              h4(class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4") Độ ưu tiên
+              select#prioritySelect(class="w-full text-sm font-bold rounded-lg border-slate-200 dark:border-slate-700 dark:bg-slate-800 py-2 px-3")
+                option(value="low" selected=(pri === 'low')) Thấp
+                option(value="medium" selected=(pri === 'medium')) Trung bình
+                option(value="high" selected=(pri === 'high')) Cao
+
+        footer(class="px-6 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex flex-wrap justify-end items-center gap-4 text-xs text-slate-400")
+          .flex.items-center.gap-1
+            span(class="material-symbols-outlined text-sm") label
+            = statusVi[task.status] || task.status
+          .flex.items-center.gap-1
+            span(class="material-symbols-outlined text-sm") visibility
+            | Đang theo dõi
+          .flex.items-center.gap-1
+            span(class="material-symbols-outlined text-sm") history
+            | Hoạt động cuối: #{lastActivityText}
+
+    script.
+      (function () {
+        var projectId = #{project.id};
+        var taskId = #{task.id};
+        var initialDesc = !{JSON.stringify(task.description || '')};
+
+        function patch(body) {
+          return fetch('/projects/' + projectId + '/tasks/' + taskId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }).then(function (res) {
+            if (res.ok) location.reload();
+            else return res.json().then(function (d) { alert(d.error || 'Không lưu được'); });
+          }).catch(function () { alert('Lỗi mạng'); });
+        }
+
+        function assertStartNotAfterDue(startYmd, dueYmd) {
+          if (!startYmd || !dueYmd) return true;
+          return startYmd <= dueYmd;
+        }
+
+        document.getElementById('saveTitle').addEventListener('click', function () {
+          var v = document.getElementById('taskTitle').value.trim();
+          if (!v) return alert('Tiêu đề không được để trống');
+          patch({ title: v });
+        });
+
+        document.getElementById('saveDesc').addEventListener('click', function () {
+          patch({ description: document.getElementById('taskDesc').value });
+        });
+
+        document.getElementById('cancelDesc').addEventListener('click', function () {
+          document.getElementById('taskDesc').value = initialDesc;
+        });
+
+        document.getElementById('prioritySelect').addEventListener('change', function () {
+          patch({ priority: this.value });
+        });
+
+        document.getElementById('saveStart').addEventListener('click', function () {
+          var startV = document.getElementById('startInput').value;
+          var dueV = document.getElementById('dueInput').value;
+          if (!assertStartNotAfterDue(startV, dueV)) {
+            alert('Ngày bắt đầu không được sau hạn chót.');
+            return;
+          }
+          patch({ start_date: startV || null });
+        });
+
+        document.getElementById('saveDue').addEventListener('click', function () {
+          var dueV = document.getElementById('dueInput').value;
+          var startV = document.getElementById('startInput').value;
+          if (!assertStartNotAfterDue(startV, dueV)) {
+            alert('Ngày bắt đầu không được sau hạn chót.');
+            return;
+          }
+          patch({ due_date: dueV || null });
+        });
+      })();

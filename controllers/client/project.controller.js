@@ -1,6 +1,48 @@
 const prisma = require('../../config/prisma');
 const { PROJECT_ROLES } = require('../../helpers/role.helper');
 
+function formatRelativeVi(date) {
+  if (!date) return '';
+  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (s < 15) return 'Vừa xong';
+  if (s < 60) return `${s} giây trước`;
+  if (s < 3600) return `${Math.floor(s / 60)} phút trước`;
+  if (s < 86400) return `${Math.floor(s / 3600)} giờ trước`;
+  return `${Math.floor(s / 86400)} ngày trước`;
+}
+
+function formatCommentTime(date) {
+  return new Date(date).toLocaleString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+/** Chuỗi YYYY-MM-DD theo UTC (đồng bộ với @db.Date / input date). */
+function toYmd(d) {
+  if (d === null || d === undefined) return null;
+  const x = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(x.getTime())) return null;
+  const y = x.getUTCFullYear();
+  const m = String(x.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(x.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Chỉ kiểm tra khi đủ cả hai ngày. */
+function validateTaskDateRange(start, due) {
+  if (!start || !due) return null;
+  const s = toYmd(start);
+  const e = toYmd(due);
+  if (!s || !e) return null;
+  if (s > e) {
+    return 'Ngày bắt đầu không được sau hạn chót.';
+  }
+  return null;
+}
+
 // [GET] /projects/create
 exports.getCreate = (req, res) => {
   res.render('client/pages/project/create', {
@@ -89,10 +131,146 @@ exports.getProject = async (req, res) => {
       columns,
       membership: res.locals.membership,
       isTeamLeader: res.locals.membership.project_role === PROJECT_ROLES.TEAM_LEADER,
+      boardQueryError: req.query.error || null,
     });
   } catch (error) {
     console.error('Get project error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// [GET] /projects/:id/tasks/:taskId — Task detail (modal layout)
+exports.getTaskDetail = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const taskId = Number(req.params.taskId);
+    if (!Number.isInteger(projectId) || !Number.isInteger(taskId)) {
+      return res.status(404).render('client/pages/errors/404', { title: 'Not Found' });
+    }
+
+    const task = await prisma.tasks.findFirst({
+      where: { id: taskId, project_id: projectId },
+      include: {
+        project: { select: { id: true, project_name: true } },
+        creator: {
+          select: { id: true, full_name: true, email: true, avatar_url: true },
+        },
+        comments: {
+          include: {
+            user: {
+              select: { id: true, full_name: true, email: true, avatar_url: true },
+            },
+          },
+          orderBy: { created_at: 'asc' },
+        },
+        assignees: {
+          include: {
+            user: {
+              select: { id: true, full_name: true, email: true, avatar_url: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      return res.status(404).render('client/pages/errors/404', { title: 'Not Found' });
+    }
+
+    const members = await prisma.project_members.findMany({
+      where: { project_id: projectId },
+      include: {
+        user: {
+          select: { id: true, full_name: true, email: true, avatar_url: true },
+        },
+      },
+    });
+
+    const assignedIds = new Set(task.assignees.map((a) => a.assignee_id));
+    const assignCandidates = members.filter((m) => !assignedIds.has(m.user_id));
+
+    res.render('client/pages/project/task-detail', {
+      title: task.title,
+      user: res.locals.user,
+      project: task.project,
+      task,
+      membership: res.locals.membership,
+      isTeamLeader: res.locals.membership.project_role === PROJECT_ROLES.TEAM_LEADER,
+      members,
+      assignCandidates,
+      lastActivityText: formatRelativeVi(task.updated_at),
+      formatCommentTime,
+      queryError: req.query.error || null,
+    });
+  } catch (error) {
+    console.error('Get task detail error:', error);
+    res.redirect(`/projects/${req.params.id}`);
+  }
+};
+
+// [PATCH] /projects/:id/tasks/:taskId — Update title, description, priority, start_date, due_date
+exports.patchTask = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const taskId = Number(req.params.taskId);
+    if (!Number.isInteger(projectId) || !Number.isInteger(taskId)) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const existing = await prisma.tasks.findFirst({
+      where: { id: taskId, project_id: projectId },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const { title, description, priority, start_date, due_date } = req.body;
+    const data = {};
+
+    if (title !== undefined && String(title).trim()) {
+      data.title = String(title).trim().slice(0, 300);
+    }
+    if (description !== undefined) {
+      data.description = description === '' || description === null ? null : String(description);
+    }
+    if (priority !== undefined) {
+      const p = String(priority).toLowerCase();
+      if (['low', 'medium', 'high'].includes(p)) data.priority = p;
+    }
+
+    const touchesDates = start_date !== undefined || due_date !== undefined;
+    let nextStart = existing.start_date;
+    let nextDue = existing.due_date;
+
+    if (start_date !== undefined) {
+      nextStart = start_date === '' || start_date === null ? null : new Date(start_date);
+      data.start_date = nextStart;
+    }
+    if (due_date !== undefined) {
+      nextDue = due_date === '' || due_date === null ? null : new Date(due_date);
+      data.due_date = nextDue;
+    }
+
+    if (touchesDates) {
+      const rangeErr = validateTaskDateRange(nextStart, nextDue);
+      if (rangeErr) {
+        return res.status(400).json({ error: rangeErr });
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'No valid fields' });
+    }
+
+    await prisma.tasks.update({
+      where: { id: taskId },
+      data,
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Patch task error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
@@ -146,14 +324,21 @@ exports.createTask = async (req, res) => {
     const userId = res.locals.user.id;
     const { title, description, priority, start_date, due_date } = req.body;
 
+    const startD = start_date ? new Date(start_date) : null;
+    const dueD = due_date ? new Date(due_date) : null;
+    const rangeErr = validateTaskDateRange(startD, dueD);
+    if (rangeErr) {
+      return res.redirect(`/projects/${projectId}?error=date_range_invalid`);
+    }
+
     await prisma.tasks.create({
       data: {
         project_id: projectId,
         title,
         description: description || null,
         priority: priority || 'medium',
-        start_date: start_date ? new Date(start_date) : null,
-        due_date: due_date ? new Date(due_date) : null,
+        start_date: startD,
+        due_date: dueD,
         created_by: userId,
       },
     });
@@ -168,9 +353,17 @@ exports.createTask = async (req, res) => {
 // [PATCH] /projects/:id/tasks/:taskId/status — Update task status (drag & drop)
 exports.updateTaskStatus = async (req, res) => {
   try {
+    const projectId = Number(req.params.id);
     const taskId = Number(req.params.taskId);
     const { status } = req.body;
     const userId = res.locals.user.id;
+
+    const task = await prisma.tasks.findFirst({
+      where: { id: taskId, project_id: projectId },
+    });
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
 
     const validStatuses = ['todo', 'doing', 'review', 'done'];
     if (!validStatuses.includes(status)) {
@@ -209,19 +402,39 @@ exports.assignTask = async (req, res) => {
     const taskId = Number(req.params.taskId);
     const { assignee_id } = req.body;
     const userId = res.locals.user.id;
+    const assigneeIdNum = Number(assignee_id);
+
+    const task = await prisma.tasks.findFirst({
+      where: { id: taskId, project_id: projectId },
+    });
+    if (!task) {
+      return res.redirect(`/projects/${projectId}?error=task_not_found`);
+    }
+
+    const member = await prisma.project_members.findUnique({
+      where: {
+        project_id_user_id: {
+          project_id: projectId,
+          user_id: assigneeIdNum,
+        },
+      },
+    });
+    if (!member) {
+      return res.redirect(`/projects/${projectId}/tasks/${taskId}?error=not_project_member`);
+    }
 
     await prisma.task_assignments.create({
       data: {
         task_id: taskId,
-        assignee_id: Number(assignee_id),
+        assignee_id: assigneeIdNum,
         assigned_by: userId,
       },
     });
 
-    res.redirect(`/projects/${projectId}`);
+    res.redirect(`/projects/${projectId}/tasks/${taskId}`);
   } catch (error) {
     console.error('Assign task error:', error);
-    res.redirect(`/projects/${req.params.id}?error=assign_failed`);
+    res.redirect(`/projects/${req.params.id}/tasks/${req.params.taskId}?error=assign_failed`);
   }
 };
 
@@ -233,17 +446,29 @@ exports.addComment = async (req, res) => {
     const userId = res.locals.user.id;
     const { content } = req.body;
 
+    const task = await prisma.tasks.findFirst({
+      where: { id: taskId, project_id: projectId },
+    });
+    if (!task) {
+      return res.redirect(`/projects/${projectId}`);
+    }
+
+    const text = content && String(content).trim();
+    if (!text) {
+      return res.redirect(`/projects/${projectId}/tasks/${taskId}`);
+    }
+
     await prisma.comments.create({
       data: {
         task_id: taskId,
         user_id: userId,
-        content,
+        content: text,
       },
     });
 
-    res.redirect(`/projects/${projectId}`);
+    res.redirect(`/projects/${projectId}/tasks/${taskId}`);
   } catch (error) {
     console.error('Add comment error:', error);
-    res.redirect(`/projects/${req.params.id}`);
+    res.redirect(`/projects/${req.params.id}/tasks/${req.params.taskId}`);
   }
 };

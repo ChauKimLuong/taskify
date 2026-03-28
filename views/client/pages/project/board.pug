@@ -88,16 +88,18 @@ html(lang="en" class="scroll-smooth")
   mixin taskCard(task, isDone)
     - var priorityStyles = { high: 'bg-tertiary-fixed text-on-tertiary-fixed', medium: 'bg-secondary-fixed text-on-secondary-fixed', low: 'bg-surface-container-highest text-on-surface-variant' }
     - var priorityLabels = { high: 'High Priority', medium: 'Medium', low: 'Low' }
-    div(class="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-transparent hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
+    div(class="relative bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-transparent hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
       class=isDone ? 'opacity-70' : 'hover:scale-[1.01]'
       data-task-id=task.id
     )
-      .flex.justify-between.items-start.mb-3
+      a.task-detail-link(href=`/projects/${project.id}/tasks/${task.id}` class="absolute top-3 right-3 z-10 p-1 rounded-lg hover:bg-surface-container-high text-slate-400 hover:text-primary transition-colors" title="Chi tiết task" aria-label="Mở chi tiết task" onclick="event.stopPropagation();")
+        span(class="material-symbols-outlined text-lg") open_in_new
+      .flex.justify-between.items-start.mb-3.pr-8
         span(class=`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${priorityStyles[task.priority] || priorityStyles.medium}`)= priorityLabels[task.priority] || 'Medium'
         if isDone
           span(class="material-symbols-outlined text-primary text-lg") check_circle
         else
-          span(class="material-symbols-outlined text-slate-300 text-lg cursor-pointer hover:text-slate-500") more_horiz
+          span(class="material-symbols-outlined text-slate-300 text-lg") more_horiz
       h3(class=`text-sm font-semibold mb-1 text-on-surface ${isDone ? 'line-through' : ''}`)= task.title
       if task.description
         p(class="text-xs text-on-surface-variant line-clamp-2 mb-4 leading-relaxed")= task.description
@@ -176,6 +178,10 @@ html(lang="en" class="scroll-smooth")
 
     //- ===== MAIN WORKSPACE =====
     main(class="ml-64 p-8 h-[calc(100vh-4rem)] overflow-hidden flex flex-col")
+
+      if boardQueryError === 'date_range_invalid'
+        div(class="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm")
+          | Ngày bắt đầu không được sau hạn chót. Vui lòng chỉnh lại khi tạo task.
 
       //- Board Header
       .flex.justify-between.items-center.mb-8
@@ -326,6 +332,8 @@ html(lang="en" class="scroll-smooth")
             chosenClass: 'sortable-chosen',
             dragClass: 'sortable-drag',
             easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            filter: '.task-detail-link',
+            preventOnFilter: false,
 
             onEnd: async function(evt) {
               const taskId = evt.item.dataset.taskId;
