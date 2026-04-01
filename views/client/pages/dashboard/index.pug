@@ -19,80 +19,193 @@ block content
 
     //- Stats row
     .grid.grid-cols-3.gap-6.mb-10
-      div(class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/10 hover:shadow-lg hover:border-primary/10 hover:-translate-y-0.5 transition-all duration-300")
+      //- Total Projects — scroll to project list
+      div(id="stat-total" class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border-2 border-outline-variant/10 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group stat-card" data-filter="all")
         .flex.items-center.gap-4
-          div(class="w-12 h-12 rounded-[10px] bg-primary/10 flex items-center justify-center")
+          div(class="w-12 h-12 rounded-[10px] bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300")
             span(class="material-symbols-outlined text-primary") folder_open
           div
             p(class="text-2xl font-bold")= projects.length
             p(class="text-xs text-on-surface-variant uppercase tracking-wider font-medium") Total Projects
 
-      div(class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/10 hover:shadow-lg hover:border-tertiary/10 hover:-translate-y-0.5 transition-all duration-300")
+      //- As Team Leader — filter leader projects
+      - var leaderCount = projects.filter(p => p.role === 'team_leader').length
+      div(id="stat-leader" class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border-2 border-outline-variant/10 hover:shadow-lg hover:border-tertiary/30 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group stat-card" data-filter="team_leader")
         .flex.items-center.gap-4
-          div(class="w-12 h-12 rounded-[10px] bg-tertiary/10 flex items-center justify-center")
+          div(class="w-12 h-12 rounded-[10px] bg-tertiary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300")
             span(class="material-symbols-outlined text-tertiary") star
           div
-            - var leaderCount = projects.filter(p => p.role === 'team_leader').length
             p(class="text-2xl font-bold")= leaderCount
             p(class="text-xs text-on-surface-variant uppercase tracking-wider font-medium") As Team Leader
 
-      div(class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/10 hover:shadow-lg hover:border-secondary/10 hover:-translate-y-0.5 transition-all duration-300")
+      //- As Member — filter member projects
+      - var memberCount = projects.filter(p => p.role === 'member').length
+      div(id="stat-member" class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border-2 border-outline-variant/10 hover:shadow-lg hover:border-secondary/30 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group stat-card" data-filter="member")
         .flex.items-center.gap-4
-          div(class="w-12 h-12 rounded-[10px] bg-secondary/10 flex items-center justify-center")
+          div(class="w-12 h-12 rounded-[10px] bg-secondary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300")
             span(class="material-symbols-outlined text-secondary") group
           div
-            - var memberCount = projects.filter(p => p.role === 'member').length
             p(class="text-2xl font-bold")= memberCount
             p(class="text-xs text-on-surface-variant uppercase tracking-wider font-medium") As Member
 
     //- Projects section
-    .flex.justify-between.items-center.mb-6
-      h2(class="text-xl font-bold") Your Projects
-      a(href="/projects/create" class="flex items-center gap-1 text-primary text-sm font-semibold hover:underline underline-offset-2 transition-all")
-        span(class="material-symbols-outlined text-sm") add
-        | New Project
-
-    if projects.length === 0
-      div(class="bg-surface-container-lowest rounded-2xl p-16 text-center border border-outline-variant/10")
-        span(class="material-symbols-outlined text-6xl text-slate-300 mb-4") folder_off
-        h3(class="text-lg font-semibold mb-2") No projects yet
-        p(class="text-on-surface-variant mb-6") Create your first project to get started!
-        a(href="/projects/create" class="inline-flex items-center gap-2 signature-gradient text-white px-6 py-3 rounded-[10px] font-semibold shadow-lg hover:shadow-xl hover:shadow-primary/30 hover:opacity-95 transition-all duration-200 active:scale-[0.98]")
+    #projects-section
+      .flex.justify-between.items-center.mb-6
+        .flex.items-center.gap-3
+          h2(class="text-xl font-bold") Your Projects
+          //- Active filter badge
+          span(id="filter-badge" class="hidden items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary")
+            span(id="filter-badge-text") All
+            button(id="clear-filter" class="ml-1 hover:text-error transition-colors" title="Clear filter")
+              span(class="material-symbols-outlined text-sm") close
+        a(href="/projects/create" class="flex items-center gap-1 text-primary text-sm font-semibold hover:underline underline-offset-2 transition-all")
           span(class="material-symbols-outlined text-sm") add
-          | Create Project
-    else
-      div(class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6")
-        each p in projects
-          a(href=`/projects/${p.id}` class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-transparent hover:border-primary/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group")
-            .flex.justify-between.items-start.mb-4
-              .flex.items-center.gap-3
-                div(class="w-10 h-10 rounded-[10px] bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300")
-                  span(class="material-symbols-outlined text-primary") folder_open
-                div
-                  h3(class="font-semibold text-on-surface group-hover:text-primary transition-colors duration-200")= p.project_name
-                  span(class="text-xs text-on-surface-variant")= p.role === 'team_leader' ? 'Team Leader' : 'Member'
-              span(class=`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg ${p.status === 'active' ? 'bg-emerald-100 text-emerald-700' : p.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`)= p.status
+          | New Project
 
-            if p.description
-              p(class="text-xs text-on-surface-variant line-clamp-2 mb-4")= p.description
+      if projects.length === 0
+        div(class="bg-surface-container-lowest rounded-2xl p-16 text-center border border-outline-variant/10")
+          span(class="material-symbols-outlined text-6xl text-slate-300 mb-4") folder_off
+          h3(class="text-lg font-semibold mb-2") No projects yet
+          p(class="text-on-surface-variant mb-6") Create your first project to get started!
+          a(href="/projects/create" class="inline-flex items-center gap-2 signature-gradient text-white px-6 py-3 rounded-[10px] font-semibold shadow-lg hover:shadow-xl hover:shadow-primary/30 hover:opacity-95 transition-all duration-200 active:scale-[0.98]")
+            span(class="material-symbols-outlined text-sm") add
+            | Create Project
+      else
+        //- No results message (hidden by default)
+        div(id="no-filter-results" class="hidden bg-surface-container-lowest rounded-2xl p-12 text-center border border-outline-variant/10 animate-fade-in")
+          span(class="material-symbols-outlined text-5xl text-slate-300 mb-3") filter_list_off
+          h3(class="text-lg font-semibold mb-2") No projects found
+          p(class="text-on-surface-variant mb-4") No projects match the selected filter.
+          button(id="reset-filter-btn" class="inline-flex items-center gap-2 text-primary font-semibold hover:underline underline-offset-2 transition-all")
+            span(class="material-symbols-outlined text-sm") refresh
+            | Show All Projects
 
-            //- Progress bar
-            .mb-4
-              .flex.justify-between.text-xs.mb-1
-                span(class="text-on-surface-variant font-medium") Progress
-                span(class="font-semibold")= p.progress + '%'
-              .w-full.bg-surface-container-low.h-2.rounded-full.overflow-hidden
-                div(class="bg-primary h-full rounded-full transition-all duration-500" style=`width: ${p.progress}%`)
+        div(id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6")
+          each p in projects
+            a(href=`/projects/${p.id}` class="project-card bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-transparent hover:border-primary/10 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group" data-role=p.role)
+              .flex.justify-between.items-start.mb-4
+                .flex.items-center.gap-3
+                  div(class="w-10 h-10 rounded-[10px] bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300")
+                    span(class="material-symbols-outlined text-primary") folder_open
+                  div
+                    h3(class="font-semibold text-on-surface group-hover:text-primary transition-colors duration-200")= p.project_name
+                    span(class="text-xs text-on-surface-variant")= p.role === 'team_leader' ? 'Team Leader' : 'Member'
+                span(class=`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg ${p.status === 'active' ? 'bg-emerald-100 text-emerald-700' : p.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`)= p.status
 
-            //- Member avatars & task count
-            div(class="flex items-center justify-between pt-4 border-t border-outline-variant/10")
-              .flex.-space-x-2
-                each m, i in p.members
-                  if i < 3
-                    if m.user.avatar_url
-                      img(src=m.user.avatar_url class="w-6 h-6 rounded-full border border-white object-cover")
-                    else
-                      .w-6.h-6.rounded-full.bg-secondary.flex.items-center.justify-center.text-white.text-xs.font-bold.border.border-white= m.user.full_name ? m.user.full_name.charAt(0).toUpperCase() : m.user.email.charAt(0).toUpperCase()
-                if p.members.length > 3
-                  .w-6.h-6.rounded-full.bg-primary-fixed.flex.items-center.justify-center.text-xs.font-bold.border.border-white= '+' + (p.members.length - 3)
-              span(class="text-xs text-on-surface-variant")= p.totalTasks + ' tasks'
+              if p.description
+                p(class="text-xs text-on-surface-variant line-clamp-2 mb-4")= p.description
+
+              //- Progress bar
+              .mb-4
+                .flex.justify-between.text-xs.mb-1
+                  span(class="text-on-surface-variant font-medium") Progress
+                  span(class="font-semibold")= p.progress + '%'
+                .w-full.bg-surface-container-low.h-2.rounded-full.overflow-hidden
+                  div(class="bg-primary h-full rounded-full transition-all duration-500" style=`width: ${p.progress}%`)
+
+              //- Member avatars & task count
+              div(class="flex items-center justify-between pt-4 border-t border-outline-variant/10")
+                .flex.-space-x-2
+                  each m, i in p.members
+                    if i < 3
+                      if m.user.avatar_url
+                        img(src=m.user.avatar_url class="w-6 h-6 rounded-full border border-white object-cover")
+                      else
+                        .w-6.h-6.rounded-full.bg-secondary.flex.items-center.justify-center.text-white.text-xs.font-bold.border.border-white= m.user.full_name ? m.user.full_name.charAt(0).toUpperCase() : m.user.email.charAt(0).toUpperCase()
+                  if p.members.length > 3
+                    .w-6.h-6.rounded-full.bg-primary-fixed.flex.items-center.justify-center.text-xs.font-bold.border.border-white= '+' + (p.members.length - 3)
+                span(class="text-xs text-on-surface-variant")= p.totalTasks + ' tasks'
+
+  //- ===== FILTER & SCROLL JS =====
+  script.
+    document.addEventListener('DOMContentLoaded', () => {
+      const statCards = document.querySelectorAll('.stat-card');
+      const projectCards = document.querySelectorAll('.project-card');
+      const filterBadge = document.getElementById('filter-badge');
+      const filterBadgeText = document.getElementById('filter-badge-text');
+      const clearFilter = document.getElementById('clear-filter');
+      const noResults = document.getElementById('no-filter-results');
+      const resetBtn = document.getElementById('reset-filter-btn');
+      const projectsGrid = document.getElementById('projects-grid');
+      let activeFilter = 'all';
+
+      const filterLabels = {
+        all: 'All Projects',
+        team_leader: 'Team Leader',
+        member: 'Member'
+      };
+
+      const borderColors = {
+        all: 'border-primary',
+        team_leader: 'border-tertiary',
+        member: 'border-secondary'
+      };
+
+      function applyFilter(filter) {
+        activeFilter = filter;
+
+        // Update stat card active states
+        statCards.forEach(card => {
+          card.classList.remove('border-primary', 'border-tertiary', 'border-secondary', 'shadow-lg');
+          card.classList.add('border-outline-variant/10');
+          if (card.dataset.filter === filter) {
+            card.classList.remove('border-outline-variant/10');
+            card.classList.add(borderColors[filter], 'shadow-lg');
+          }
+        });
+
+        // Filter project cards
+        let visibleCount = 0;
+        projectCards.forEach(card => {
+          if (filter === 'all' || card.dataset.role === filter) {
+            card.style.display = '';
+            visibleCount++;
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
+        // Show/hide no results
+        if (noResults) {
+          noResults.classList.toggle('hidden', visibleCount > 0);
+        }
+        if (projectsGrid) {
+          projectsGrid.classList.toggle('hidden', visibleCount === 0);
+        }
+
+        // Show/hide filter badge
+        if (filter !== 'all') {
+          filterBadge.classList.remove('hidden');
+          filterBadge.classList.add('inline-flex');
+          filterBadgeText.textContent = filterLabels[filter];
+        } else {
+          filterBadge.classList.add('hidden');
+          filterBadge.classList.remove('inline-flex');
+        }
+
+        // Smooth scroll to projects section
+        document.getElementById('projects-section').scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+
+      statCards.forEach(card => {
+        card.addEventListener('click', () => {
+          applyFilter(card.dataset.filter);
+        });
+      });
+
+      if (clearFilter) {
+        clearFilter.addEventListener('click', (e) => {
+          e.preventDefault();
+          applyFilter('all');
+        });
+      }
+
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          applyFilter('all');
+        });
+      }
+    });

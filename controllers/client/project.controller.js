@@ -1,5 +1,7 @@
 const prisma = require('../../config/prisma');
 const { PROJECT_ROLES } = require('../../helpers/role.helper');
+const fs = require('fs');
+const path = require('path');
 
 function formatRelativeVi(date) {
   if (!date) return '';
@@ -17,6 +19,17 @@ function formatCommentTime(date) {
     minute: '2-digit',
     day: 'numeric',
     month: 'short',
+  });
+}
+
+function formatTaskDateDisplayVi(date) {
+  const ymd = toYmd(date);
+  if (!ymd) return 'Chưa đặt';
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('vi-VN', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'long',
   });
 }
 
@@ -97,6 +110,7 @@ exports.getProject = async (req, res) => {
         tasks: {
           include: {
             assignees: {
+              orderBy: { assigned_at: 'desc' },
               include: {
                 user: {
                   select: { id: true, full_name: true, email: true, avatar_url: true },
@@ -105,6 +119,10 @@ exports.getProject = async (req, res) => {
             },
             comments: {
               select: { id: true },
+            },
+            labels: true,
+            attachments: {
+              select: { id: true, file_name: true, file_url: true, file_type: true },
             },
           },
           orderBy: { created_at: 'asc' },
@@ -124,6 +142,11 @@ exports.getProject = async (req, res) => {
       done: project.tasks.filter((t) => t.status === 'done'),
     };
 
+    // Compute progress
+    const totalTasks = project.tasks.length;
+    const doneTasks = project.tasks.filter((t) => t.status === 'done').length;
+    const progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
     res.render('client/pages/project/board', {
       title: project.project_name,
       user: res.locals.user,
@@ -132,6 +155,9 @@ exports.getProject = async (req, res) => {
       membership: res.locals.membership,
       isTeamLeader: res.locals.membership.project_role === PROJECT_ROLES.TEAM_LEADER,
       boardQueryError: req.query.error || null,
+      totalTasks,
+      doneTasks,
+      progress,
     });
   } catch (error) {
     console.error('Get project error:', error);
@@ -164,11 +190,23 @@ exports.getTaskDetail = async (req, res) => {
           orderBy: { created_at: 'asc' },
         },
         assignees: {
+          orderBy: { assigned_at: 'desc' },
           include: {
             user: {
               select: { id: true, full_name: true, email: true, avatar_url: true },
             },
           },
+        },
+        labels: {
+          orderBy: { created_at: 'asc' },
+        },
+        attachments: {
+          include: {
+            uploader: {
+              select: { id: true, full_name: true, email: true },
+            },
+          },
+          orderBy: { created_at: 'desc' },
         },
       },
     });
@@ -186,18 +224,23 @@ exports.getTaskDetail = async (req, res) => {
       },
     });
 
-    const assignedIds = new Set(task.assignees.map((a) => a.assignee_id));
-    const assignCandidates = members.filter((m) => !assignedIds.has(m.user_id));
+    const currentAssignee = task.assignees[0] || null;
 
     res.render('client/pages/project/task-detail', {
       title: task.title,
       user: res.locals.user,
       project: task.project,
       task,
+      taskDateUi: {
+        startDisplay: formatTaskDateDisplayVi(task.start_date),
+        startInput: toYmd(task.start_date) || '',
+        dueDisplay: formatTaskDateDisplayVi(task.due_date),
+        dueInput: toYmd(task.due_date) || '',
+      },
       membership: res.locals.membership,
       isTeamLeader: res.locals.membership.project_role === PROJECT_ROLES.TEAM_LEADER,
       members,
-      assignCandidates,
+      currentAssigneeId: currentAssignee ? currentAssignee.assignee_id : null,
       lastActivityText: formatRelativeVi(task.updated_at),
       formatCommentTime,
       queryError: req.query.error || null,
@@ -388,14 +431,23 @@ exports.updateTaskStatus = async (req, res) => {
       data: updateData,
     });
 
-    res.json({ success: true });
+    // Return updated progress info
+    const allTasks = await prisma.tasks.findMany({
+      where: { project_id: projectId },
+      select: { status: true },
+    });
+    const totalTasks = allTasks.length;
+    const doneTasks = allTasks.filter((t) => t.status === 'done').length;
+    const progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+    res.json({ success: true, totalTasks, doneTasks, progress });
   } catch (error) {
     console.error('Update task status error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-// [POST] /projects/:id/tasks/:taskId/assign — Assign member to task
+// [POST] /projects/:id/tasks/:taskId/assign — Replace current assignee
 exports.assignTask = async (req, res) => {
   try {
     const projectId = Number(req.params.id);
@@ -423,13 +475,18 @@ exports.assignTask = async (req, res) => {
       return res.redirect(`/projects/${projectId}/tasks/${taskId}?error=not_project_member`);
     }
 
-    await prisma.task_assignments.create({
-      data: {
-        task_id: taskId,
-        assignee_id: assigneeIdNum,
-        assigned_by: userId,
-      },
-    });
+    await prisma.$transaction([
+      prisma.task_assignments.deleteMany({
+        where: { task_id: taskId },
+      }),
+      prisma.task_assignments.create({
+        data: {
+          task_id: taskId,
+          assignee_id: assigneeIdNum,
+          assigned_by: userId,
+        },
+      }),
+    ]);
 
     res.redirect(`/projects/${projectId}/tasks/${taskId}`);
   } catch (error) {
@@ -469,6 +526,211 @@ exports.addComment = async (req, res) => {
     res.redirect(`/projects/${projectId}/tasks/${taskId}`);
   } catch (error) {
     console.error('Add comment error:', error);
+    res.redirect(`/projects/${req.params.id}/tasks/${req.params.taskId}`);
+  }
+};
+
+// [POST] /projects/:id/delete — Delete project (team leader only)
+exports.deleteProject = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+
+    await prisma.projects.delete({
+      where: { id: projectId },
+    });
+
+    res.redirect('/dashboard');
+  } catch (error) {
+    console.error('Delete project error:', error);
+    res.redirect(`/projects/${req.params.id}?error=delete_failed`);
+  }
+};
+
+// [POST] /projects/:id/edit — Update project (team leader only)
+exports.updateProject = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const { project_name, new_leader_id } = req.body;
+
+    if (project_name && String(project_name).trim()) {
+      await prisma.projects.update({
+        where: { id: projectId },
+        data: { project_name: String(project_name).trim().slice(0, 200) },
+      });
+    }
+
+    if (new_leader_id) {
+      const newLeaderId = Number(new_leader_id);
+      const currentUserId = res.locals.user.id;
+
+      const newLeaderMembership = await prisma.project_members.findUnique({
+        where: {
+          project_id_user_id: {
+            project_id: projectId,
+            user_id: newLeaderId,
+          },
+        },
+      });
+
+      if (!newLeaderMembership) {
+        return res.redirect(`/projects/${projectId}?error=not_project_member`);
+      }
+
+      if (newLeaderId !== currentUserId) {
+        await prisma.$transaction([
+          prisma.project_members.update({
+            where: {
+              project_id_user_id: {
+                project_id: projectId,
+                user_id: currentUserId,
+              },
+            },
+            data: { project_role: PROJECT_ROLES.MEMBER },
+          }),
+          prisma.project_members.update({
+            where: {
+              project_id_user_id: {
+                project_id: projectId,
+                user_id: newLeaderId,
+              },
+            },
+            data: { project_role: PROJECT_ROLES.TEAM_LEADER },
+          }),
+        ]);
+      }
+    }
+
+    res.redirect(`/projects/${projectId}`);
+  } catch (error) {
+    console.error('Update project error:', error);
+    res.redirect(`/projects/${req.params.id}?error=update_failed`);
+  }
+};
+
+// ===================== LABELS =====================
+
+// [POST] /projects/:id/tasks/:taskId/labels — Add label
+exports.addLabel = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const taskId = Number(req.params.taskId);
+    const { label_name, color } = req.body;
+
+    const task = await prisma.tasks.findFirst({
+      where: { id: taskId, project_id: projectId },
+    });
+    if (!task) {
+      return res.redirect(`/projects/${projectId}`);
+    }
+
+    const name = label_name && String(label_name).trim();
+    if (!name) {
+      return res.redirect(`/projects/${projectId}/tasks/${taskId}`);
+    }
+
+    await prisma.task_labels.create({
+      data: {
+        task_id: taskId,
+        label_name: name.slice(0, 50),
+        color: color || '#6366f1',
+      },
+    });
+
+    res.redirect(`/projects/${projectId}/tasks/${taskId}`);
+  } catch (error) {
+    console.error('Add label error:', error);
+    res.redirect(`/projects/${req.params.id}/tasks/${req.params.taskId}`);
+  }
+};
+
+// [POST] /projects/:id/tasks/:taskId/labels/:labelId/delete — Remove label
+exports.deleteLabel = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const taskId = Number(req.params.taskId);
+    const labelId = Number(req.params.labelId);
+
+    await prisma.task_labels.delete({
+      where: { id: labelId },
+    });
+
+    res.redirect(`/projects/${projectId}/tasks/${taskId}`);
+  } catch (error) {
+    console.error('Delete label error:', error);
+    res.redirect(`/projects/${req.params.id}/tasks/${req.params.taskId}`);
+  }
+};
+
+// ===================== ATTACHMENTS =====================
+
+// [POST] /projects/:id/tasks/:taskId/attachments — Upload attachment
+exports.addAttachment = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const taskId = Number(req.params.taskId);
+    const userId = res.locals.user.id;
+
+    const task = await prisma.tasks.findFirst({
+      where: { id: taskId, project_id: projectId },
+    });
+    if (!task) {
+      return res.redirect(`/projects/${projectId}`);
+    }
+
+    if (!req.file) {
+      return res.redirect(`/projects/${projectId}/tasks/${taskId}?error=no_file`);
+    }
+
+    const fileUrl = `/uploads/attachments/${req.file.filename}`;
+    const fileType = req.file.mimetype.split('/')[0]; // image, application, etc.
+
+    await prisma.task_attachments.create({
+      data: {
+        task_id: taskId,
+        file_name: req.file.originalname,
+        file_url: fileUrl,
+        file_type: fileType,
+        file_size: req.file.size,
+        uploaded_by: userId,
+      },
+    });
+
+    res.redirect(`/projects/${projectId}/tasks/${taskId}`);
+  } catch (error) {
+    console.error('Add attachment error:', error);
+    res.redirect(`/projects/${req.params.id}/tasks/${req.params.taskId}`);
+  }
+};
+
+// [POST] /projects/:id/tasks/:taskId/attachments/:attachId/delete — Delete attachment
+exports.deleteAttachment = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const taskId = Number(req.params.taskId);
+    const attachId = Number(req.params.attachId);
+
+    // Get file info to delete from disk
+    const attachment = await prisma.task_attachments.findUnique({
+      where: { id: attachId },
+    });
+
+    if (attachment) {
+      // Delete file from disk
+      const filePath = path.join(__dirname, '..', '..', 'public', attachment.file_url);
+      try {
+        fs.unlinkSync(filePath);
+      } catch (e) {
+        // File might not exist, continue
+      }
+
+      await prisma.task_attachments.delete({
+        where: { id: attachId },
+      });
+    }
+
+    res.redirect(`/projects/${projectId}/tasks/${taskId}`);
+  } catch (error) {
+    console.error('Delete attachment error:', error);
     res.redirect(`/projects/${req.params.id}/tasks/${req.params.taskId}`);
   }
 };

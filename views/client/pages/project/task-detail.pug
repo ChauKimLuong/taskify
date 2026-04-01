@@ -3,17 +3,21 @@ extends ../../layout-public
 block title
   | #{task.title} | Taskify
 
+block head
+  link(rel="stylesheet" href="/css/pages/task-detail.css")
+
 block body
   - var taskRef = 'TSK-' + task.id
   - var pri = task.priority || 'medium'
   - var statusVi = { todo: 'Cần làm', doing: 'Đang làm', review: 'Đang review', done: 'Hoàn thành' }
-  - var startStr = task.start_date ? new Date(task.start_date).toLocaleDateString('vi-VN', { day: 'numeric', month: 'long' }) : 'Chưa đặt'
-  - var startInput = task.start_date ? new Date(task.start_date).toISOString().slice(0, 10) : ''
-  - var dueStr = task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN', { day: 'numeric', month: 'long' }) : 'Chưa đặt'
-  - var dueInput = task.due_date ? new Date(task.due_date).toISOString().slice(0, 10) : ''
+  - var labelColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#06b6d4']
+  - var labelColorClasses = { '#6366f1': 'task-label-chip--indigo', '#ec4899': 'task-label-chip--pink', '#f59e0b': 'task-label-chip--amber', '#10b981': 'task-label-chip--emerald', '#3b82f6': 'task-label-chip--blue', '#ef4444': 'task-label-chip--red', '#8b5cf6': 'task-label-chip--violet', '#14b8a6': 'task-label-chip--teal', '#f97316': 'task-label-chip--orange', '#06b6d4': 'task-label-chip--cyan' }
+  - var startStr = taskDateUi ? taskDateUi.startDisplay : 'Chưa đặt'
+  - var startInput = taskDateUi ? taskDateUi.startInput : ''
+  - var dueStr = taskDateUi ? taskDateUi.dueDisplay : 'Chưa đặt'
+  - var dueInput = taskDateUi ? taskDateUi.dueInput : ''
 
-  //- Blurred board simulation
-  div(class="fixed inset-0 z-0 overflow-hidden flex flex-col pointer-events-none opacity-40 grayscale")
+  div(class="fixed inset-0 z-0 hidden overflow-hidden pointer-events-none opacity-40 grayscale lg:flex lg:flex-col")
     header(class="h-16 border-b border-slate-200 flex items-center px-8 justify-between")
       .flex.items-center.gap-4
         .w-8.h-8.bg-primary.rounded-lg
@@ -29,69 +33,112 @@ block body
           if col !== 2
             div(class="h-24 bg-white rounded-xl shadow-sm border border-slate-200")
 
-  //- Modal overlay
-  div(class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4")
-    div(class="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-fade-in-up")
-
-      //- Error banner
+  main(class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4")
+    section(class="bg-white w-full max-w-5xl h-[94vh] sm:h-[90vh] lg:h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-fade-in-up")
       if queryError
-        div(class="px-6 py-2 bg-error-container/40 text-on-error-container text-sm border-b border-error/10")
+        div(class="px-4 py-2 sm:px-6 bg-error-container/40 text-on-error-container text-sm border-b border-error/10" role="alert")
           case queryError
             when 'assign_failed'
               | Không gán được thành viên (có thể đã được gán trước đó).
             when 'not_project_member'
               | Người được chọn không thuộc dự án.
+            when 'no_file'
+              | Vui lòng chọn tệp để đính kèm.
             default
               | Đã có lỗi xảy ra. Vui lòng thử lại.
 
-      //- Header
-      header(class="flex items-center justify-between px-6 py-4 border-b border-slate-100")
-        .flex.items-center.gap-3
-          span(class="material-symbols-outlined text-slate-400") task_alt
-          span(class="text-sm font-semibold text-slate-500 tracking-wider")= taskRef
+      header(class="flex items-center justify-between px-4 py-4 sm:px-6 border-b border-slate-100")
+        .min-w-0
+          .flex.items-center.gap-3
+            span(class="material-symbols-outlined text-slate-400") task_alt
+            span(class="text-sm font-semibold text-slate-500 tracking-wider")= taskRef
+          h1(class="mt-2 text-lg sm:text-xl font-extrabold text-slate-900 truncate")= task.title
         a(href=`/projects/${project.id}` class="p-2 hover:bg-slate-100 rounded-[10px] transition-all duration-200 group" aria-label="Đóng")
           span(class="material-symbols-outlined text-slate-500 group-hover:text-primary") close
 
-      div(class="flex flex-1 overflow-hidden")
-        //- Left column
-        div(class="flex-1 overflow-y-auto p-8 custom-scrollbar")
+      div(class="flex flex-1 flex-col overflow-hidden lg:flex-row")
+        div(class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar")
           .mb-6
-            textarea#taskTitle(class="w-full text-3xl font-extrabold text-slate-900 bg-transparent border-none focus:ring-0 resize-none p-0 leading-tight" rows="2")= task.title
+            label(for="taskTitle" class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500") Tiêu đề công việc
+            textarea#taskTitle(class="w-full text-2xl sm:text-3xl font-extrabold text-slate-900 bg-transparent border-none focus:ring-0 resize-none p-0 leading-tight" rows="2")= task.title
             .mt-2.flex.gap-2
-              button#saveTitle(type="button" class="px-3 py-1.5 signature-gradient text-white text-sm font-bold rounded-[8px] hover:opacity-90 transition-all duration-200") Lưu tiêu đề
+              button#saveTitle(type="button" class="px-3 py-1.5 signature-gradient text-white text-sm font-bold rounded-[8px] hover:opacity-90 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed") Lưu tiêu đề
 
-          .flex.flex-wrap.gap-2.mb-8
+          .flex.flex-wrap.gap-2.mb-6
             span(class="px-3 py-1 signature-gradient text-white text-xs font-bold rounded-full uppercase tracking-wide flex items-center gap-1.5")
               span(class="material-symbols-outlined text-sm") folder_open
               = project.project_name
+            if task.labels && task.labels.length > 0
+              each lbl in task.labels
+                - var lblColorClass = labelColorClasses[lbl.color] || labelColorClasses['#6366f1']
+                span(class=`px-3 py-1 text-white text-xs font-bold rounded-full uppercase tracking-wide flex items-center gap-1.5 ${lblColorClass}`)
+                  = lbl.label_name
+                  form(method="POST" action=`/projects/${project.id}/tasks/${task.id}/labels/${lbl.id}/delete` class="inline ml-1")
+                    button(type="submit" class="hover:opacity-70 transition-opacity" title="Xóa nhãn")
+                      span(class="material-symbols-outlined text-xs text-white/80") close
 
           section.mb-10
             .flex.items-center.gap-2.mb-3
               span(class="material-symbols-outlined text-slate-600") subject
-              h3(class="text-lg font-bold text-slate-800") Mô tả
+              h2(class="text-lg font-bold text-slate-800") Mô tả
             .group.relative
+              label(for="taskDesc" class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500") Nội dung mô tả
               textarea#taskDesc(class="w-full min-h-[160px] p-4 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-slate-400" placeholder="Thêm mô tả chi tiết công việc tại đây...")= task.description || ''
               div(class="absolute bottom-3 right-3 flex gap-2 opacity-0 group-focus-within:opacity-100 transition-opacity")
-                button#saveDesc(type="button" class="px-3 py-1.5 signature-gradient text-white text-sm font-bold rounded-[8px] hover:opacity-90 transition-all duration-200") Lưu
+                button#saveDesc(type="button" class="px-3 py-1.5 signature-gradient text-white text-sm font-bold rounded-[8px] hover:opacity-90 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed") Lưu
                 button#cancelDesc(type="button" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-sm font-bold rounded-[8px] hover:bg-slate-300 transition-all duration-200") Hủy
+
+          section.mb-10
+            .flex.items-center.gap-2.mb-4
+              span(class="material-symbols-outlined text-slate-600") attach_file
+              h2(class="text-lg font-bold text-slate-800") Đính kèm
+              span(class="text-xs text-slate-400 font-medium")= task.attachments ? `(${task.attachments.length})` : '(0)'
+
+            if task.attachments && task.attachments.length > 0
+              div(class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4")
+                each att in task.attachments
+                  div(class="relative group bg-slate-50 border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-200")
+                    if att.file_type === 'image'
+                      a(href=att.file_url target="_blank" rel="noreferrer")
+                        img(src=att.file_url alt=att.file_name class="w-full h-32 object-cover")
+                    else
+                      a(href=att.file_url target="_blank" rel="noreferrer" class="flex items-center gap-3 p-4")
+                        span(class="material-symbols-outlined text-2xl text-slate-400") description
+                        .flex-1.min-w-0
+                          p(class="text-sm font-medium text-slate-700 truncate")= att.file_name
+                          p(class="text-xs text-slate-400")= att.uploader ? (att.uploader.full_name || att.uploader.email) : ''
+                    form(method="POST" action=`/projects/${project.id}/tasks/${task.id}/attachments/${att.id}/delete` class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity")
+                      button(type="submit" class="p-1 bg-white/90 rounded-lg shadow-sm hover:bg-red-50 hover:text-error transition-all" title="Xóa tệp")
+                        span(class="material-symbols-outlined text-sm") delete
+            else
+              p(class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500") Chưa có tệp đính kèm nào.
+
+            form(method="POST" action=`/projects/${project.id}/tasks/${task.id}/attachments` enctype="multipart/form-data" class="flex items-center gap-3")
+              label(class="flex-1 flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all duration-200")
+                span(class="material-symbols-outlined text-slate-400") cloud_upload
+                span(class="text-sm text-slate-500") Chọn tệp đính kèm...
+                input(type="file" name="attachment" required class="hidden" onchange="this.form.submit()")
 
           section
             .flex.items-center.gap-2.mb-6
               span(class="material-symbols-outlined text-slate-600") forum
-              h3(class="text-lg font-bold text-slate-800") Bình luận
+              h2(class="text-lg font-bold text-slate-800") Bình luận
 
-            .space-y-6.mb-8
-              each c in task.comments
-                .flex.gap-4
-                  if c.user.avatar_url
-                    img(alt=c.user.full_name || c.user.email class="w-10 h-10 rounded-full border-2 border-slate-100 object-cover" src=c.user.avatar_url)
-                  else
-                    div(class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold border-2 border-slate-100")= (c.user.full_name || c.user.email || '?').charAt(0).toUpperCase()
-                  .flex-1
-                    .flex.items-baseline.gap-2.mb-1
-                      span(class="font-bold text-slate-900")= c.user.full_name || c.user.email
-                      span(class="text-xs text-slate-400")= formatCommentTime(c.created_at)
-                    div(class="bg-slate-50 p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl text-slate-700 text-sm whitespace-pre-wrap")= c.content
+            if task.comments && task.comments.length
+              .space-y-6.mb-8
+                each c in task.comments
+                  .flex.gap-4
+                    if c.user.avatar_url
+                      img(alt=c.user.full_name || c.user.email class="w-10 h-10 rounded-full border-2 border-slate-100 object-cover" src=c.user.avatar_url)
+                    else
+                      div(class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold border-2 border-slate-100")= (c.user.full_name || c.user.email || '?').charAt(0).toUpperCase()
+                    .flex-1
+                      .flex.items-baseline.gap-2.mb-1.flex-wrap
+                        span(class="font-bold text-slate-900")= c.user.full_name || c.user.email
+                        span(class="text-xs text-slate-400")= formatCommentTime(c.created_at)
+                      div(class="bg-slate-50 p-3 rounded-tr-xl rounded-br-xl rounded-bl-xl text-slate-700 text-sm whitespace-pre-wrap")= c.content
+            else
+              p(class="mb-8 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500") Chưa có bình luận nào.
 
             form(method="POST" action=`/projects/${project.id}/tasks/${task.id}/comments` class="flex gap-4 pt-4 border-t border-slate-100")
               if user.avatar_url
@@ -99,73 +146,104 @@ block body
               else
                 div(class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold border-2 border-primary/20")= (user.full_name || user.email || '?').charAt(0).toUpperCase()
               .flex-1.relative
-                input(name="content" class="w-full h-12 px-4 bg-white border border-slate-200 rounded-[10px] focus:ring-2 focus:ring-primary/40 focus:border-primary pr-12 transition-all" placeholder="Thêm comment..." type="text" required autocomplete="off")
-                button(type="submit" aria-label="Gửi" class="absolute right-2 top-2 p-1.5 text-primary hover:bg-primary/10 rounded-[8px] transition-all duration-200")
+                label(for="taskComment" class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500") Thêm bình luận
+                input#taskComment(name="content" class="w-full h-12 px-4 bg-white border border-slate-200 rounded-[10px] focus:ring-2 focus:ring-primary/40 focus:border-primary pr-12 transition-all" placeholder="Thêm comment..." type="text" required autocomplete="off")
+                button(type="submit" aria-label="Gửi" class="absolute right-2 top-[2.1rem] p-1.5 text-primary hover:bg-primary/10 rounded-[8px] transition-all duration-200")
                   span.material-symbols-outlined send
 
-        //- Right sidebar
-        aside(class="w-72 bg-slate-50/50 border-l border-slate-100 p-6 overflow-y-auto custom-scrollbar")
+        aside(class="w-full lg:w-72 shrink-0 bg-slate-50/50 border-t lg:border-t-0 lg:border-l border-slate-100 p-4 sm:p-6 overflow-y-auto custom-scrollbar")
           .mb-8
-            h4(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Thao tác
-            .space-y-2
-              if isTeamLeader && assignCandidates.length
+            h2(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Thao tác
+            .space-y-3
+              if isTeamLeader && members.length
                 form.space-y-2(method="POST" action=`/projects/${project.id}/tasks/${task.id}/assign`)
-                  label(class="flex items-center gap-3 px-3 py-2.5 bg-white border border-slate-200 rounded-[10px] text-sm font-semibold text-slate-700 shadow-sm hover:shadow-md transition-all duration-200")
+                  label(for="assigneeSelect" class="block text-xs font-semibold uppercase tracking-wide text-slate-500") Người đảm nhận
+                  div(class="flex items-center gap-3 px-3 py-2.5 bg-white border border-slate-200 rounded-[10px] text-sm font-semibold text-slate-700 shadow-sm hover:shadow-md transition-all duration-200")
                     span(class="material-symbols-outlined text-lg text-slate-500") person_add
-                    select(name="assignee_id" class="flex-1 bg-transparent border-none text-sm focus:ring-0 cursor-pointer" required onchange="this.form.submit()")
-                      option(value="" disabled selected) Gán người thực hiện…
-                      each m in assignCandidates
-                        option(value=m.user_id)= m.user.full_name || m.user.email
+                    select#assigneeSelect(name="assignee_id" class="flex-1 bg-transparent border-none text-sm focus:ring-0 cursor-pointer" required onchange="this.form.submit()")
+                      option(value="" disabled selected=!currentAssigneeId) Chọn người đảm nhận...
+                      each m in members
+                        option(value=m.user_id selected=(currentAssigneeId === m.user_id))= m.user.full_name || m.user.email
               else
                 button(type="button" disabled class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/60 border border-slate-200 rounded-[10px] text-sm font-semibold text-slate-400 cursor-not-allowed shadow-sm")
                   span(class="material-symbols-outlined text-lg") person_add
-                  | Gán người thực hiện
-              button(type="button" disabled class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/60 border border-slate-200 rounded-[10px] text-sm font-semibold text-slate-400 cursor-not-allowed shadow-sm" title="Sắp có")
-                span(class="material-symbols-outlined text-lg text-slate-400") sell
+                  | Chỉ team leader được đổi người đảm nhận
+
+              button#toggleLabelSection(type="button" class="w-full flex items-center gap-3 px-3 py-2.5 bg-white border border-slate-200 rounded-[10px] text-sm font-semibold text-slate-700 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200" aria-expanded="false" aria-controls="labelSection")
+                span(class="material-symbols-outlined text-lg text-slate-500") sell
                 | Thêm nhãn
+
+              #labelSection(class="hidden")
+                form(method="POST" action=`/projects/${project.id}/tasks/${task.id}/labels` class="space-y-2 p-3 bg-white border border-slate-200 rounded-[10px] shadow-sm")
+                  label(for="labelName" class="block text-xs font-semibold uppercase tracking-wide text-slate-500") Tên nhãn
+                  input#labelName(name="label_name" required placeholder="Tên nhãn..." class="w-full text-sm rounded-lg border-slate-200 px-3 py-2 focus:ring-2 focus:ring-primary/40" maxlength="50")
+                  p(class="text-xs font-semibold uppercase tracking-wide text-slate-500") Màu nhãn
+                  div(class="flex flex-wrap gap-1.5")
+                    each clr in labelColors
+                      - var clrClass = labelColorClasses[clr] || labelColorClasses['#6366f1']
+                      label(class="cursor-pointer")
+                        input(type="radio" name="color" value=clr class="sr-only peer" checked=clr === '#6366f1')
+                        span(class=`block w-6 h-6 rounded-full border-2 border-transparent peer-checked:border-slate-800 peer-checked:scale-110 transition-all hover:scale-110 ${clrClass}`)
+                  button(type="submit" class="w-full py-2 signature-gradient text-white text-xs font-bold rounded-lg hover:opacity-90 transition-all") Thêm nhãn
+
               .flex.flex-col.gap-2
-                label(class="text-xs font-semibold text-slate-500") Ngày bắt đầu
+                label(for="startInput" class="text-xs font-semibold text-slate-500") Ngày bắt đầu
                 div(class="flex items-center gap-2 text-slate-700 mb-1")
                   span(class="material-symbols-outlined text-slate-400 text-lg") event
                   span#startDisplay(class="text-sm font-semibold")= startStr
                 .flex.items-center.gap-2
                   input#startInput(type="date" value=startInput class="flex-1 text-sm rounded-[10px] border-slate-200")
-                  button#saveStart(type="button" class="px-2 py-1.5 signature-gradient text-white text-xs font-bold rounded-[8px] shrink-0 hover:opacity-90 transition-all") Lưu
-              .flex.flex-col.gap-2.mt-3
-                label(class="text-xs font-semibold text-slate-500") Hạn chót
+                  button#saveStart(type="button" class="px-2 py-1.5 signature-gradient text-white text-xs font-bold rounded-[8px] shrink-0 hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed") Lưu
+
+              .flex.flex-col.gap-2
+                label(for="dueInput" class="text-xs font-semibold text-slate-500") Hạn chót
                 div(class="flex items-center gap-2 text-slate-700 mb-1")
                   span(class="material-symbols-outlined text-slate-400 text-lg") calendar_month
                   span#dueDisplay(class="text-sm font-semibold")= dueStr
                 .flex.items-center.gap-2
                   input#dueInput(type="date" value=dueInput class="flex-1 text-sm rounded-[10px] border-slate-200")
-                  button#saveDue(type="button" class="px-2 py-1.5 signature-gradient text-white text-xs font-bold rounded-[8px] shrink-0 hover:opacity-90 transition-all") Lưu
-              button(type="button" disabled class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/60 border border-slate-200 rounded-[10px] text-sm font-semibold text-slate-400 cursor-not-allowed shadow-sm mt-2" title="Sắp có")
-                span(class="material-symbols-outlined text-lg text-slate-400") attach_file
-                | Đính kèm tệp
+                  button#saveDue(type="button" class="px-2 py-1.5 signature-gradient text-white text-xs font-bold rounded-[8px] shrink-0 hover:opacity-90 transition-all disabled:opacity-60 disabled:cursor-not-allowed") Lưu
+
+              form(method="POST" action=`/projects/${project.id}/tasks/${task.id}/attachments` enctype="multipart/form-data")
+                label(class="w-full flex items-center gap-3 px-3 py-2.5 bg-white border border-slate-200 rounded-[10px] text-sm font-semibold text-slate-700 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer")
+                  span(class="material-symbols-outlined text-lg text-slate-500") attach_file
+                  | Đính kèm tệp
+                  input(type="file" name="attachment" class="hidden" onchange="this.form.submit()")
 
           .mb-8
-            h4(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Thành viên
+            h2(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Thành viên
             if task.assignees.length
-              .flex.-space-x-2.flex-wrap.gap-y-2
-                each a, i in task.assignees
-                  if i < 4
-                    if a.user.avatar_url
-                      img(alt=a.user.full_name class="w-8 h-8 rounded-full border-2 border-white object-cover" src=a.user.avatar_url)
-                    else
-                      div(class="w-8 h-8 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-xs font-bold")= (a.user.full_name || a.user.email).charAt(0).toUpperCase()
-                if task.assignees.length > 4
-                  div(class="w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-500")= '+' + (task.assignees.length - 4)
+              - var assignee = task.assignees[0]
+              .flex.items-center.gap-3
+                if assignee.user.avatar_url
+                  img(alt=assignee.user.full_name class="w-10 h-10 rounded-full border border-white object-cover" src=assignee.user.avatar_url)
+                else
+                  div(class="w-10 h-10 rounded-full bg-slate-300 border border-white flex items-center justify-center text-sm font-bold")= (assignee.user.full_name || assignee.user.email).charAt(0).toUpperCase()
+                .min-w-0
+                  p(class="text-sm font-semibold text-slate-700 truncate")= assignee.user.full_name || assignee.user.email
+                  p(class="text-xs text-slate-500") Người đảm nhận hiện tại
             else
-              p(class="text-sm text-slate-500") Chưa có người được gán.
+              p(class="text-sm text-slate-500") Chưa có người đảm nhận.
 
           .mb-8
-            h4(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Độ ưu tiên
+            h2(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Nhãn
+            if task.labels && task.labels.length > 0
+              div(class="flex flex-wrap gap-1.5")
+                each lbl in task.labels
+                  - var sidebarLblColorClass = labelColorClasses[lbl.color] || labelColorClasses['#6366f1']
+                  span(class=`px-2 py-0.5 text-white text-[10px] font-bold rounded-full uppercase ${sidebarLblColorClass}`)= lbl.label_name
+            else
+              p(class="text-sm text-slate-500") Chưa có nhãn.
+
+          .mb-8
+            h2(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Độ ưu tiên
+            label(for="prioritySelect" class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500") Chọn mức ưu tiên
             select#prioritySelect(class="w-full text-sm font-bold rounded-[10px] border-slate-200 py-2 px-3 focus:ring-2 focus:ring-primary/40 transition-all")
               option(value="low" selected=(pri === 'low')) Thấp
               option(value="medium" selected=(pri === 'medium')) Trung bình
               option(value="high" selected=(pri === 'high')) Cao
 
-      footer(class="px-6 py-3 bg-slate-50 border-t border-slate-100 flex flex-wrap justify-end items-center gap-4 text-xs text-slate-400")
+      footer(class="px-4 py-3 sm:px-6 bg-slate-50 border-t border-slate-100 flex flex-wrap justify-end items-center gap-4 text-xs text-slate-400")
         .flex.items-center.gap-1
           span(class="material-symbols-outlined text-sm") label
           = statusVi[task.status] || task.status
@@ -181,16 +259,38 @@ block body
       var projectId = #{project.id};
       var taskId = #{task.id};
       var initialDesc = !{JSON.stringify(task.description || '')};
+      var toggleLabelSectionButton = document.getElementById('toggleLabelSection');
+      var labelSection = document.getElementById('labelSection');
 
-      function patch(body) {
+      function setBusy(control, busy, busyText) {
+        if (!control) return;
+        if (!control.dataset.idleText) control.dataset.idleText = control.tagName === 'SELECT' ? '' : control.textContent.trim();
+        control.disabled = busy;
+        control.setAttribute('aria-busy', busy ? 'true' : 'false');
+        if (control.tagName !== 'SELECT') {
+          control.textContent = busy ? (busyText || 'Đang lưu...') : control.dataset.idleText;
+        }
+      }
+
+      function patch(body, control, busyText) {
+        setBusy(control, true, busyText);
         return fetch('/projects/' + projectId + '/tasks/' + taskId, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         }).then(function (res) {
-          if (res.ok) location.reload();
-          else return res.json().then(function (d) { alert(d.error || 'Không lưu được'); });
-        }).catch(function () { alert('Lỗi mạng'); });
+          if (res.ok) {
+            location.reload();
+            return null;
+          }
+          return res.json().then(function (d) {
+            alert(d.error || 'Không lưu được');
+          });
+        }).catch(function () {
+          alert('Lỗi mạng');
+        }).finally(function () {
+          setBusy(control, false);
+        });
       }
 
       function assertStartNotAfterDue(startYmd, dueYmd) {
@@ -199,13 +299,16 @@ block body
       }
 
       document.getElementById('saveTitle').addEventListener('click', function () {
-        var v = document.getElementById('taskTitle').value.trim();
-        if (!v) return alert('Tiêu đề không được để trống');
-        patch({ title: v });
+        var value = document.getElementById('taskTitle').value.trim();
+        if (!value) {
+          alert('Tiêu đề không được để trống');
+          return;
+        }
+        patch({ title: value }, this, 'Đang lưu...');
       });
 
       document.getElementById('saveDesc').addEventListener('click', function () {
-        patch({ description: document.getElementById('taskDesc').value });
+        patch({ description: document.getElementById('taskDesc').value }, this, 'Đang lưu...');
       });
 
       document.getElementById('cancelDesc').addEventListener('click', function () {
@@ -213,26 +316,34 @@ block body
       });
 
       document.getElementById('prioritySelect').addEventListener('change', function () {
-        patch({ priority: this.value });
+        patch({ priority: this.value }, this, 'Đang cập nhật...');
       });
 
       document.getElementById('saveStart').addEventListener('click', function () {
-        var startV = document.getElementById('startInput').value;
-        var dueV = document.getElementById('dueInput').value;
-        if (!assertStartNotAfterDue(startV, dueV)) {
+        var startValue = document.getElementById('startInput').value;
+        var dueValue = document.getElementById('dueInput').value;
+        if (!assertStartNotAfterDue(startValue, dueValue)) {
           alert('Ngày bắt đầu không được sau hạn chót.');
           return;
         }
-        patch({ start_date: startV || null });
+        patch({ start_date: startValue || null }, this, 'Đang lưu...');
       });
 
       document.getElementById('saveDue').addEventListener('click', function () {
-        var dueV = document.getElementById('dueInput').value;
-        var startV = document.getElementById('startInput').value;
-        if (!assertStartNotAfterDue(startV, dueV)) {
+        var dueValue = document.getElementById('dueInput').value;
+        var startValue = document.getElementById('startInput').value;
+        if (!assertStartNotAfterDue(startValue, dueValue)) {
           alert('Ngày bắt đầu không được sau hạn chót.');
           return;
         }
-        patch({ due_date: dueV || null });
+        patch({ due_date: dueValue || null }, this, 'Đang lưu...');
       });
+
+      if (toggleLabelSectionButton && labelSection) {
+        toggleLabelSectionButton.addEventListener('click', function () {
+          var nextExpanded = this.getAttribute('aria-expanded') !== 'true';
+          this.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+          labelSection.classList.toggle('hidden');
+        });
+      }
     })();

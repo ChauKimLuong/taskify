@@ -26,6 +26,7 @@ model users {
   assigned_to_me      task_assignments[]  @relation("Assignee")
   assigned_by_me      task_assignments[]  @relation("Assigner")
   comments            comments[]
+  uploaded_files      task_attachments[] @relation("FileUploader")
 }
 
 model projects {
@@ -75,8 +76,10 @@ model tasks {
   project  projects           @relation(fields: [project_id], references: [id], onDelete: Cascade)
   creator  users              @relation("TaskCreator", fields: [created_by], references: [id])
   approver users?             @relation("TaskApprover", fields: [approved_by], references: [id])
-  assignees task_assignments[]
-  comments comments[]
+  assignees    task_assignments[]
+  comments     comments[]
+  labels       task_labels[]
+  attachments  task_attachments[]
 
   @@index([project_id])
   @@index([project_id, status])
@@ -111,3 +114,32 @@ model comments {
 
   @@index([task_id])
 }
+
+model task_labels {
+  id         Int      @id @default(autoincrement())
+  task_id    Int
+  label_name String   @db.VarChar(50)
+  color      String   @default("#6366f1") @db.VarChar(20)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  task tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+
+  @@index([task_id])
+}
+
+model task_attachments {
+  id          Int      @id @default(autoincrement())
+  task_id     Int
+  file_name   String   @db.VarChar(255)
+  file_url    String
+  file_type   String   @db.VarChar(50)
+  file_size   Int      @default(0)
+  uploaded_by Int
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  task    tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  uploader users @relation("FileUploader", fields: [uploaded_by], references: [id])
+
+  @@index([task_id])
+}
+
