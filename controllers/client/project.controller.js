@@ -322,13 +322,14 @@ exports.addMember = async (req, res) => {
   try {
     const projectId = Number(req.params.id);
     const { email } = req.body;
+    const redirectBase = req.query.from === 'members' ? `/projects/${projectId}/members` : `/projects/${projectId}`;
 
     const user = await prisma.users.findUnique({
       where: { email },
     });
 
     if (!user || user.is_deleted) {
-      return res.redirect(`/projects/${projectId}?error=user_not_found`);
+      return res.redirect(`${redirectBase}?error=user_not_found`);
     }
 
     // Check if already a member
@@ -342,7 +343,7 @@ exports.addMember = async (req, res) => {
     });
 
     if (existing) {
-      return res.redirect(`/projects/${projectId}?error=already_member`);
+      return res.redirect(`${redirectBase}?error=already_member`);
     }
 
     await prisma.project_members.create({
@@ -353,10 +354,101 @@ exports.addMember = async (req, res) => {
       },
     });
 
-    res.redirect(`/projects/${projectId}`);
+    res.redirect(redirectBase);
   } catch (error) {
     console.error('Add member error:', error);
-    res.redirect(`/projects/${req.params.id}?error=add_failed`);
+    const redirectBase = req.query.from === 'members' ? `/projects/${req.params.id}/members` : `/projects/${req.params.id}`;
+    res.redirect(`${redirectBase}?error=add_failed`);
+  }
+};
+
+// [GET] /projects/:id/members — Members popup
+exports.getProjectMembers = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+
+    const project = await prisma.projects.findUnique({
+      where: { id: projectId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: { id: true, full_name: true, email: true, avatar_url: true },
+            },
+          },
+          orderBy: [
+            { project_role: 'asc' },
+            { joined_at: 'asc' },
+          ],
+        },
+      },
+    });
+
+    if (!project) {
+      return res.status(404).render('client/pages/errors/404', { title: 'Not Found' });
+    }
+
+    res.render('client/pages/project/member-list', {
+      title: `${project.project_name} Members`,
+      user: res.locals.user,
+      project,
+      members: project.members,
+      membership: res.locals.membership,
+      isTeamLeader: res.locals.membership.project_role === PROJECT_ROLES.TEAM_LEADER,
+      membersQueryError: req.query.error || null,
+    });
+  } catch (error) {
+    console.error('Get project members error:', error);
+    res.redirect(`/projects/${req.params.id}`);
+  }
+};
+
+// [POST] /projects/:id/members/:userId/delete — Remove member
+exports.deleteMember = async (req, res) => {
+  try {
+    const projectId = Number(req.params.id);
+    const memberUserId = Number(req.params.userId);
+
+    const membership = await prisma.project_members.findUnique({
+      where: {
+        project_id_user_id: {
+          project_id: projectId,
+          user_id: memberUserId,
+        },
+      },
+    });
+
+    if (!membership) {
+      return res.redirect(`/projects/${projectId}/members?error=member_not_found`);
+    }
+
+    if (membership.project_role === PROJECT_ROLES.TEAM_LEADER) {
+      return res.redirect(`/projects/${projectId}/members?error=cannot_remove_leader`);
+    }
+
+    await prisma.$transaction([
+      prisma.task_assignments.deleteMany({
+        where: {
+          assignee_id: memberUserId,
+          task: {
+            project_id: projectId,
+          },
+        },
+      }),
+      prisma.project_members.delete({
+        where: {
+          project_id_user_id: {
+            project_id: projectId,
+            user_id: memberUserId,
+          },
+        },
+      }),
+    ]);
+
+    res.redirect(`/projects/${projectId}/members`);
+  } catch (error) {
+    console.error('Delete member error:', error);
+    res.redirect(`/projects/${req.params.id}/members?error=remove_failed`);
   }
 };
 

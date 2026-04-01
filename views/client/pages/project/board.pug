@@ -89,11 +89,10 @@ block content
           .w-32.bg-surface-container-low.h-2.rounded-full.overflow-hidden
             div(id="progress-bar" class="bg-primary h-full rounded-full transition-all duration-500" style=`width: ${progress}%`)
           span(id="progress-text" class="text-xs font-bold text-on-surface-variant")= progress + '%'
-          span(class="text-xs text-slate-400")= `(${doneTasks}/${totalTasks})`
-            span(id="progress-detail")
+          span(id="progress-detail" class="text-xs text-slate-400")= `(${doneTasks}/${totalTasks})`
       .flex.items-center.gap-4
         //- Member avatars
-        .flex.-space-x-3
+        a(href=`/projects/${project.id}/members` class="flex -space-x-3 hover:opacity-90 transition-opacity" aria-label="View project members")
           each m, i in project.members
             if i < 3
               if m.user.avatar_url
@@ -106,9 +105,18 @@ block content
         //- Team leader actions
         if isTeamLeader
           .flex.items-center.gap-2
+            a(href=`/projects/${project.id}/members` class="flex items-center gap-1 bg-surface-container-high text-on-surface px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-surface-container-highest transition-all duration-200")
+              span(class="material-symbols-outlined text-sm") groups
+              | Members
             button(onclick="document.getElementById('addMemberModal').classList.remove('hidden')" class="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-primary/20 transition-all duration-200")
               span(class="material-symbols-outlined text-sm") person_add
               | Add Member
+        else
+          a(href=`/projects/${project.id}/members` class="flex items-center gap-1 bg-surface-container-high text-on-surface px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-surface-container-highest transition-all duration-200")
+            span(class="material-symbols-outlined text-sm") groups
+            | Members
+        if isTeamLeader
+          .flex.items-center.gap-2
             button(onclick="document.getElementById('editProjectModal').classList.remove('hidden')" class="flex items-center gap-1 bg-secondary/10 text-secondary px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-secondary/20 transition-all duration-200")
               span(class="material-symbols-outlined text-sm") edit
               | Edit

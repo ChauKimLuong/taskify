@@ -1,0 +1,115 @@
+extends ../../layout-public
+
+block title
+  | #{project.project_name} Members | Taskify
+
+block body
+  - var roleLabel = { team_leader: 'Team Leader', member: 'Member' }
+  - var leaderMember = members.find(function (member) { return member.project_role === 'team_leader'; })
+
+  div(class="fixed inset-0 z-0 hidden overflow-hidden pointer-events-none opacity-40 grayscale lg:flex lg:flex-col")
+    header(class="h-16 border-b border-slate-200 flex items-center px-8 justify-between")
+      .flex.items-center.gap-4
+        .w-8.h-8.bg-primary.rounded-lg
+        div(class="h-4 w-40 bg-slate-200 rounded")
+      .flex.gap-4
+        div(class="w-8 h-8 rounded-full bg-slate-200")
+        div(class="w-8 h-8 rounded-full bg-slate-200")
+    main(class="flex-1 p-8 grid grid-cols-4 gap-6")
+      each col in [1, 2, 3, 4]
+        .space-y-4
+          div(class="h-8 w-24 bg-slate-300 rounded")
+          div(class="h-32 bg-white rounded-xl shadow-sm border border-slate-200")
+          if col !== 3
+            div(class="h-24 bg-white rounded-xl shadow-sm border border-slate-200")
+
+  main(class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4")
+    section(class="bg-white w-full max-w-6xl h-[94vh] sm:h-[90vh] lg:h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-fade-in-up")
+      if membersQueryError
+        div(class="px-4 py-2 sm:px-6 bg-error-container/40 text-on-error-container text-sm border-b border-error/10" role="alert")
+          case membersQueryError
+            when 'user_not_found'
+              | Không tìm thấy tài khoản theo email này.
+            when 'already_member'
+              | Người dùng này đã là thành viên của project.
+            when 'member_not_found'
+              | Không tìm thấy thành viên cần xóa.
+            when 'cannot_remove_leader'
+              | Không thể xóa team leader. Hãy chuyển quyền leader trước.
+            when 'remove_failed'
+              | Không thể xóa thành viên khỏi project. Vui lòng thử lại.
+            default
+              | Đã có lỗi xảy ra. Vui lòng thử lại.
+
+      header(class="flex items-center justify-between px-4 py-4 sm:px-6 border-b border-slate-100")
+        .min-w-0
+          p(class="text-xs font-semibold uppercase tracking-widest text-slate-500") Project Members
+          h1(class="mt-1 text-xl sm:text-2xl font-extrabold text-slate-900 truncate")= project.project_name
+          p(class="mt-1 text-sm text-slate-500")= `${members.length} thành viên trong project`
+        a(href=`/projects/${project.id}` class="p-2 hover:bg-slate-100 rounded-[10px] transition-all duration-200 group" aria-label="Đóng")
+          span(class="material-symbols-outlined text-slate-500 group-hover:text-primary") close
+
+      div(class="flex flex-1 flex-col overflow-hidden lg:flex-row")
+        section(class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar")
+          .flex.items-center.justify-between.mb-6.gap-4.flex-wrap
+            .min-w-0
+              h2(class="text-lg font-bold text-slate-800") Danh sách thành viên
+              p(class="text-sm text-slate-500") Theo dõi vai trò và quản lý người tham gia trong dự án này.
+            a(href=`/projects/${project.id}` class="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-[10px] text-sm font-semibold hover:bg-slate-200 transition-all duration-200")
+              span(class="material-symbols-outlined text-lg") arrow_back
+              | Quay lại board
+
+          if members && members.length
+            .space-y-3
+              each m in members
+                article(class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm")
+                  .flex.items-center.gap-4.min-w-0
+                    if m.user.avatar_url
+                      img(src=m.user.avatar_url alt=(m.user.full_name || m.user.email) class="w-12 h-12 rounded-full object-cover border border-slate-200")
+                    else
+                      div(class="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold border border-primary/10")= (m.user.full_name || m.user.email || '?').charAt(0).toUpperCase()
+                    .min-w-0
+                      .flex.items-center.gap-2.flex-wrap
+                        h3(class="text-sm font-semibold text-slate-900 truncate")= m.user.full_name || m.user.email
+                        if m.user.id === user.id
+                          span(class="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wide") Bạn
+                        span(class=`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${m.project_role === 'team_leader' ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`)= roleLabel[m.project_role] || m.project_role
+                      p(class="text-sm text-slate-500 truncate")= m.user.email
+                  .flex.items-center.gap-2.shrink-0
+                    if isTeamLeader && m.project_role !== 'team_leader'
+                      form(method="POST" action=`/projects/${project.id}/members/${m.user.id}/delete`)
+                        button(type="submit" class="inline-flex items-center gap-2 px-3 py-2 bg-error/10 text-error rounded-[10px] text-sm font-semibold hover:bg-error/20 transition-all duration-200")
+                          span(class="material-symbols-outlined text-lg") person_remove
+                          | Xóa
+                    else if m.project_role === 'team_leader'
+                      span(class="text-xs font-semibold text-slate-400") Không thể xóa leader
+          else
+            p(class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500") Chưa có thành viên nào trong project.
+
+        aside(class="w-full lg:w-80 shrink-0 bg-slate-50/60 border-t lg:border-t-0 lg:border-l border-slate-100 p-4 sm:p-6 overflow-y-auto custom-scrollbar")
+          .space-y-6
+            section
+              h2(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Tổng quan
+              .rounded-2xl.border.border-slate-200.bg-white.p-4.shadow-sm.space-y-3
+                .flex.items-center.justify-between
+                  span(class="text-sm text-slate-500") Tổng thành viên
+                  span(class="text-lg font-bold text-slate-900")= members.length
+                .flex.items-center.justify-between
+                  span(class="text-sm text-slate-500") Team leader
+                  span(class="text-sm font-semibold text-slate-700")= leaderMember ? (leaderMember.user.full_name || leaderMember.user.email) : 'Chưa có'
+
+            if isTeamLeader
+              section
+                h2(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Thêm thành viên
+                form(method="POST" action=`/projects/${project.id}/members?from=members` class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-4")
+                  div
+                    label(for="memberEmail" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2") Email thành viên
+                    input#memberEmail(name="email" type="email" required class="w-full rounded-[10px] border-slate-200 px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40" placeholder="Nhập email tài khoản...")
+                  button(type="submit" class="w-full py-3 signature-gradient text-white font-semibold rounded-[10px] hover:opacity-95 transition-all duration-200") Thêm vào project
+              section
+                h2(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Lưu ý
+                p(class="text-sm text-slate-500 leading-relaxed") Khi xóa thành viên khỏi project, hệ thống cũng gỡ người đó khỏi các task đang được assign trong project này.
+            else
+              section
+                h2(class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4") Quyền hiện tại
+                p(class="text-sm text-slate-500 leading-relaxed") Bạn chỉ có thể xem danh sách thành viên. Việc thêm hoặc xóa member chỉ dành cho team leader.
