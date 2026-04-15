@@ -1,0 +1,35 @@
+# Dependencies - container sẽ tự cài qua npm ci
+node_modules
+
+# Biến môi trường - KHÔNG đưa vào image (bảo mật)
+.env
+
+# Git - container không cần lịch sử
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# Docker files - tránh đệ quy
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Prisma generated - sẽ generate lại trong container
+generated/prisma
+
+# Logs & temp
+*.log
+err.txt
+output.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs
+README.md

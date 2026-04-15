@@ -1,0 +1,51 @@
+# ============================================================
+# Docker Compose cho dự án Taskify
+# Gồm 2 services: app (Node.js) + db (PostgreSQL)
+# ============================================================
+
+version: "3.8"
+
+services:
+
+  # ──────────── PostgreSQL Database ────────────
+  db:
+    image: postgres:16-alpine
+    container_name: taskify-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: taskify_user
+      POSTGRES_PASSWORD: taskify_password
+      POSTGRES_DB: taskify_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskify_user -d taskify_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ──────────── Taskify App ────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taskify-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://taskify_user:taskify_password@db:5432/taskify_db?schema=public"
+      JWT_SECRET: "taskify_secret_key_qwertyuiop1234567890_hcm_2026"
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/public/uploads/attachments
+
+# ──────────── Volumes ────────────
+volumes:
+  pgdata:
+  uploads:
