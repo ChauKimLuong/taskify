@@ -1,0 +1,391 @@
+extends ../../layout
+
+block title
+  | #{title} | Taskify
+
+block head
+  script(src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js")
+
+block header-content
+  .flex.items-center.gap-4.flex-1
+    nav(class="flex items-center gap-2 text-xs font-medium text-slate-500")
+      a(href="/dashboard" class="hover:text-primary cursor-pointer transition-colors") Dashboard
+      span(class="material-symbols-outlined text-[14px]") chevron_right
+      span(class="text-on-surface font-semibold")= project.project_name
+    .relative.max-w-md.w-full.ml-4
+      span(class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg") search
+      input(class="w-full bg-surface-container-low border-none rounded-[10px] pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/40 transition-all" placeholder="Search tasks..." type="text" id="searchTasks")
+
+  .flex.items-center.gap-1
+    a(class="text-primary border-b-2 border-primary pb-1 text-xs font-semibold uppercase tracking-wider" href="#") Board View
+
+block content
+  //- Task card mixin
+  mixin taskCard(task, isDone)
+    - var priorityStyles = { high: 'bg-tertiary-fixed text-on-tertiary-fixed', medium: 'bg-secondary-fixed text-on-secondary-fixed', low: 'bg-surface-container-highest text-on-surface-variant' }
+    - var priorityLabels = { high: 'High Priority', medium: 'Medium', low: 'Low' }
+    - var firstImage = task.attachments && task.attachments.find(a => a.file_type === 'image')
+    div(class="relative bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-transparent hover:shadow-md hover:border-primary/5 transition-all duration-200 cursor-grab active:cursor-grabbing"
+      class=isDone ? 'opacity-70' : 'hover:scale-[1.01]'
+      data-task-id=task.id
+      data-task-card="true"
+    )
+      a.task-detail-link(href=`/projects/${project.id}/tasks/${task.id}` class="absolute top-3 right-3 z-10 p-1.5 rounded-[8px] hover:bg-surface-container-high text-slate-400 hover:text-primary transition-all duration-200" title="Chi tiết task" aria-label="Mở chi tiết task" onclick="event.stopPropagation();")
+        span(class="material-symbols-outlined text-lg") open_in_new
+
+      //- Attachment cover image
+      if firstImage
+        .mb-3.-mt-1.-mx-1.rounded-t-lg.overflow-hidden
+          img(src=firstImage.file_url alt=firstImage.file_name class="w-full h-28 object-cover rounded-lg")
+
+      .flex.justify-between.items-start.mb-3.pr-8
+        span(class=`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg ${priorityStyles[task.priority] || priorityStyles.medium}`)= priorityLabels[task.priority] || 'Medium'
+        span(data-task-status-icon="true" class=`material-symbols-outlined text-lg ${isDone ? 'text-primary' : 'text-slate-300'}`)= isDone ? 'check_circle' : 'more_horiz'
+
+      //- Labels
+      if task.labels && task.labels.length > 0
+        .flex.flex-wrap.gap-1.mb-2
+          each lbl in task.labels
+            span(class="text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full text-white" style=`background-color: ${lbl.color}`)= lbl.label_name
+
+      h3(data-task-title="true" class=`text-sm font-semibold mb-1 text-on-surface ${isDone ? 'line-through' : ''}`)= task.title
+      if task.description
+        p(data-task-description="true" class=`text-xs text-on-surface-variant line-clamp-2 mb-4 leading-relaxed ${isDone ? 'line-through opacity-70' : ''}`)= task.description
+      div(class="flex items-center justify-between pt-3 border-t border-outline-variant/10")
+        .flex.items-center.gap-3.text-slate-400
+          if task.due_date
+            .flex.items-center.gap-1
+              span(class="material-symbols-outlined text-[16px]") calendar_today
+              span(class="text-[10px] font-medium")= new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          if task.comments && task.comments.length > 0
+            .flex.items-center.gap-1
+              span(class="material-symbols-outlined text-[16px]") chat_bubble
+              span(class="text-[10px] font-medium")= task.comments.length
+          if task.attachments && task.attachments.length > 0
+            .flex.items-center.gap-1
+              span(class="material-symbols-outlined text-[16px]") attach_file
+              span(class="text-[10px] font-medium")= task.attachments.length
+        //- Assignee avatars
+        if task.assignees && task.assignees.length > 0
+          - var assignee = task.assignees[0]
+          .flex
+            if assignee.user.avatar_url
+              img(alt=assignee.user.full_name class="w-6 h-6 rounded-full border border-white object-cover" src=assignee.user.avatar_url)
+            else
+              .w-6.h-6.rounded-full.bg-secondary.flex.items-center.justify-center.text-white.text-xs.font-bold.border.border-white= assignee.user.full_name ? assignee.user.full_name.charAt(0).toUpperCase() : assignee.user.email.charAt(0).toUpperCase()
+
+  .p-8(class="h-[calc(100vh-4rem)] overflow-hidden flex flex-col")
+
+    if boardQueryError === 'date_range_invalid'
+      div(class="mb-4 px-4 py-3 rounded-[10px] bg-error-container/40 border border-error/20 text-on-error-container text-sm animate-fade-in")
+        | Ngày bắt đầu không được sau hạn chót. Vui lòng chỉnh lại khi tạo task.
+
+    //- Board Header
+    .flex.justify-between.items-center.mb-6
+      .flex.items-center.gap-6
+        h1(class="text-2xl font-medium text-on-surface tracking-tight")= project.project_name
+        //- Progress indicator
+        .flex.items-center.gap-3
+          .w-32.bg-surface-container-low.h-2.rounded-full.overflow-hidden
+            div(id="progress-bar" class="bg-primary h-full rounded-full transition-all duration-500" style=`width: ${progress}%`)
+          span(id="progress-text" class="text-xs font-bold text-on-surface-variant")= progress + '%'
+          span(id="progress-detail" class="text-xs text-slate-400")= `(${doneTasks}/${totalTasks})`
+      .flex.items-center.gap-4
+        //- Member avatars
+        a(href=`/projects/${project.id}/members` class="flex -space-x-3 hover:opacity-90 transition-opacity" aria-label="View project members")
+          each m, i in project.members
+            if i < 3
+              if m.user.avatar_url
+                img(alt=m.user.full_name class="w-8 h-8 rounded-full border-2 border-white object-cover" src=m.user.avatar_url)
+              else
+                .w-8.h-8.rounded-full.bg-primary.flex.items-center.justify-center.text-white.text-xs.font-bold.border-2.border-white= m.user.full_name ? m.user.full_name.charAt(0).toUpperCase() : m.user.email.charAt(0).toUpperCase()
+          if project.members.length > 3
+            .w-8.h-8.rounded-full.bg-primary-fixed.flex.items-center.justify-center.text-xs.font-bold.text-on-primary-fixed.border-2.border-white= '+' + (project.members.length - 3)
+
+        //- Team leader actions
+        if isTeamLeader
+          .flex.items-center.gap-2
+            a(href=`/projects/${project.id}/members` class="flex items-center gap-1 bg-surface-container-high text-on-surface px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-surface-container-highest transition-all duration-200")
+              span(class="material-symbols-outlined text-sm") groups
+              | Members
+            button(onclick="document.getElementById('addMemberModal').classList.remove('hidden')" class="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-primary/20 transition-all duration-200")
+              span(class="material-symbols-outlined text-sm") person_add
+              | Add Member
+        else
+          a(href=`/projects/${project.id}/members` class="flex items-center gap-1 bg-surface-container-high text-on-surface px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-surface-container-highest transition-all duration-200")
+            span(class="material-symbols-outlined text-sm") groups
+            | Members
+        if isTeamLeader
+          .flex.items-center.gap-2
+            button(onclick="document.getElementById('editProjectModal').classList.remove('hidden')" class="flex items-center gap-1 bg-secondary/10 text-secondary px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-secondary/20 transition-all duration-200")
+              span(class="material-symbols-outlined text-sm") edit
+              | Edit
+            button(onclick="document.getElementById('deleteProjectModal').classList.remove('hidden')" class="flex items-center gap-1 bg-error/10 text-error px-3 py-1.5 rounded-[10px] text-xs font-semibold hover:bg-error/20 transition-all duration-200")
+              span(class="material-symbols-outlined text-sm") delete
+              | Delete
+
+    //- ===== KANBAN BOARD =====
+    .flex.gap-6.overflow-x-auto.pb-6.h-full.custom-scrollbar
+
+      //- Column: To Do
+      div(class="flex flex-col w-80 min-w-[20rem] flex-shrink-0")
+        .flex.items-center.justify-between.mb-4.px-2
+          .flex.items-center.gap-2
+            span(class="font-semibold text-sm uppercase tracking-wider") To Do
+            span(id="count-todo" class="bg-surface-container-highest px-2 py-0.5 rounded-lg text-[10px] font-bold")= columns.todo.length
+          if isTeamLeader
+            button(onclick="document.getElementById('createTaskModal').classList.remove('hidden'); document.getElementById('taskStatus').value='todo'" class="text-slate-400 hover:text-primary transition-colors")
+              span(class="material-symbols-outlined text-lg") add
+        div(class="flex-1 bg-surface-container-low/50 rounded-2xl p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar" id="column-todo" data-status="todo")
+          each task in columns.todo
+            +taskCard(task)
+
+      //- Column: In Progress
+      div(class="flex flex-col w-80 min-w-[20rem] flex-shrink-0")
+        .flex.items-center.justify-between.mb-4.px-2
+          .flex.items-center.gap-2
+            span(class="font-semibold text-sm uppercase tracking-wider") In Progress
+            span(id="count-doing" class="bg-primary text-white px-2 py-0.5 rounded-lg text-[10px] font-bold")= columns.doing.length
+        div(class="flex-1 bg-surface-container-low/50 rounded-2xl p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar" id="column-doing" data-status="doing")
+          each task in columns.doing
+            +taskCard(task)
+
+      //- Column: In Review
+      div(class="flex flex-col w-80 min-w-[20rem] flex-shrink-0")
+        .flex.items-center.justify-between.mb-4.px-2
+          .flex.items-center.gap-2
+            span(class="font-semibold text-sm uppercase tracking-wider") In Review
+            span(id="count-review" class="bg-surface-container-highest px-2 py-0.5 rounded-lg text-[10px] font-bold")= columns.review.length
+        div(class="flex-1 bg-surface-container-low/50 rounded-2xl p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar" id="column-review" data-status="review")
+          each task in columns.review
+            +taskCard(task)
+
+      //- Column: Done
+      div(class="flex flex-col w-80 min-w-[20rem] flex-shrink-0")
+        .flex.items-center.justify-between.mb-4.px-2
+          .flex.items-center.gap-2
+            span(class="font-semibold text-sm uppercase tracking-wider") Done
+            span(id="count-done" class="bg-surface-container-highest px-2 py-0.5 rounded-lg text-[10px] font-bold")= columns.done.length
+        div(class="flex-1 bg-surface-container-low/50 rounded-2xl p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar" id="column-done" data-status="done")
+          each task in columns.done
+            +taskCard(task, true)
+
+  //- ===== CREATE TASK MODAL =====
+  if isTeamLeader
+    #createTaskModal(class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center")
+      div(class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 animate-fade-in-up")
+        .flex.justify-between.items-center.mb-6
+          h2(class="text-xl font-bold") Create New Task
+          button(onclick="document.getElementById('createTaskModal').classList.add('hidden')" class="p-1.5 rounded-[10px] text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200")
+            span.material-symbols-outlined close
+        form(method="POST" action=`/projects/${project.id}/tasks`)
+          input(type="hidden" name="status" id="taskStatus" value="todo")
+          .space-y-4
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Task Title
+              input(name="title" required class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all" placeholder="Enter task title")
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Description
+              textarea(name="description" rows="3" class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 resize-none transition-all" placeholder="Describe the task...")
+            .grid.grid-cols-3.gap-4
+              div
+                label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Priority
+                select(name="priority" class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40")
+                  option(value="low") Low
+                  option(value="medium" selected) Medium
+                  option(value="high") High
+              div
+                label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Start Date
+                input(type="date" name="start_date" class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40")
+              div
+                label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Due Date
+                input(type="date" name="due_date" class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40")
+            button(type="submit" class="w-full py-3 signature-gradient text-white font-semibold rounded-[10px] shadow-lg shadow-primary/20 hover:shadow-xl hover:opacity-95 transition-all duration-200 active:scale-[0.98]") Create Task
+
+  //- ===== ADD MEMBER MODAL =====
+  if isTeamLeader
+    #addMemberModal(class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center")
+      div(class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 animate-fade-in-up")
+        .flex.justify-between.items-center.mb-6
+          h2(class="text-xl font-bold") Add Team Member
+          button(onclick="document.getElementById('addMemberModal').classList.add('hidden')" class="p-1.5 rounded-[10px] text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200")
+            span.material-symbols-outlined close
+        form(method="POST" action=`/projects/${project.id}/members`)
+          .space-y-4
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Member Email
+              input(name="email" type="email" required class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all" placeholder="Enter email address")
+            button(type="submit" class="w-full py-3 signature-gradient text-white font-semibold rounded-[10px] shadow-lg shadow-primary/20 hover:shadow-xl hover:opacity-95 transition-all duration-200 active:scale-[0.98]") Add Member
+
+        //- Current members list
+        div(class="mt-6 pt-6 border-t border-outline-variant/20")
+          h3(class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3") Current Members
+          .space-y-2
+            each m in project.members
+              div(class="flex items-center justify-between p-2 rounded-[10px] hover:bg-surface-container-low transition-all duration-200")
+                .flex.items-center.gap-3
+                  if m.user.avatar_url
+                    img(src=m.user.avatar_url class="w-8 h-8 rounded-full object-cover")
+                  else
+                    .w-8.h-8.rounded-full.bg-primary.flex.items-center.justify-center.text-white.text-xs.font-bold= m.user.full_name ? m.user.full_name.charAt(0).toUpperCase() : m.user.email.charAt(0).toUpperCase()
+                  .flex.flex-col
+                    span.text-sm.font-medium= m.user.full_name || m.user.email
+                    span(class="text-xs text-on-surface-variant")= m.project_role === 'team_leader' ? 'Team Leader' : 'Member'
+
+  //- ===== EDIT PROJECT MODAL =====
+  if isTeamLeader
+    #editProjectModal(class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center")
+      div(class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 animate-fade-in-up")
+        .flex.justify-between.items-center.mb-6
+          h2(class="text-xl font-bold") Edit Project
+          button(onclick="document.getElementById('editProjectModal').classList.add('hidden')" class="p-1.5 rounded-[10px] text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200")
+            span.material-symbols-outlined close
+        form(method="POST" action=`/projects/${project.id}/edit`)
+          .space-y-5
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Project Name
+              input(name="project_name" required class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all" placeholder="Enter project name" value=project.project_name)
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2") Team Leader
+              select(name="new_leader_id" class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all")
+                each m in project.members
+                  - var isCurrentLeader = m.project_role === 'team_leader'
+                  option(value=m.user.id selected=isCurrentLeader)= (m.user.full_name || m.user.email) + (isCurrentLeader ? ' (Current Leader)' : '')
+            button(type="submit" class="w-full py-3 signature-gradient text-white font-semibold rounded-[10px] shadow-lg shadow-primary/20 hover:shadow-xl hover:opacity-95 transition-all duration-200 active:scale-[0.98]") Save Changes
+
+  //- ===== DELETE PROJECT MODAL =====
+  if isTeamLeader
+    #deleteProjectModal(class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center")
+      div(class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 animate-fade-in-up")
+        .flex.flex-col.items-center.text-center.mb-6
+          div(class="w-16 h-16 rounded-full bg-error/10 flex items-center justify-center mb-4")
+            span(class="material-symbols-outlined text-error text-3xl") warning
+          h2(class="text-xl font-bold mb-2") Delete Project
+          p(class="text-sm text-on-surface-variant") Are you sure you want to delete #[strong= project.project_name]? This action cannot be undone.
+        div(class="bg-error-container/30 border border-error/10 rounded-[10px] p-4 mb-6")
+          p(class="text-xs text-on-error-container leading-relaxed")
+            span(class="material-symbols-outlined text-sm align-middle mr-1") info
+            | All tasks, comments, assignments, and member data associated with this project will be permanently deleted.
+        .flex.gap-3
+          button(onclick="document.getElementById('deleteProjectModal').classList.add('hidden')" class="flex-1 py-3 bg-surface-container-low text-on-surface font-semibold rounded-[10px] hover:bg-surface-container-high transition-all duration-200") Cancel
+          form(method="POST" action=`/projects/${project.id}/delete` class="flex-1")
+            button(type="submit" class="w-full py-3 bg-error text-white font-semibold rounded-[10px] shadow-lg shadow-error/20 hover:shadow-xl hover:opacity-95 transition-all duration-200 active:scale-[0.98]") Delete Project
+
+  //- ===== SORTABLEJS SCRIPT =====
+  script.
+    document.addEventListener('DOMContentLoaded', () => {
+      const colIds = ['column-todo', 'column-doing', 'column-review', 'column-done'];
+      const countIds = { 'column-todo': 'count-todo', 'column-doing': 'count-doing', 'column-review': 'count-review', 'column-done': 'count-done' };
+      const projectId = #{project.id};
+      const userRole = '#{membership.project_role}';
+
+      function updateColumnCounts() {
+        colIds.forEach(colId => {
+          const col = document.getElementById(colId);
+          const badge = document.getElementById(countIds[colId]);
+          if (col && badge) {
+            badge.textContent = col.querySelectorAll('[data-task-id]').length;
+          }
+        });
+      }
+
+      function updateProgress(data) {
+        const bar = document.getElementById('progress-bar');
+        const text = document.getElementById('progress-text');
+        const detail = document.getElementById('progress-detail');
+        if (bar) bar.style.width = data.progress + '%';
+        if (text) text.textContent = data.progress + '%';
+        if (detail) detail.textContent = `(${data.doneTasks}/${data.totalTasks})`;
+      }
+
+      function syncTaskCardState(card, isDone) {
+        if (!card) return;
+
+        card.classList.toggle('opacity-70', isDone);
+        card.classList.toggle('hover:scale-[1.01]', !isDone);
+
+        const title = card.querySelector('[data-task-title="true"]');
+        if (title) {
+          title.classList.toggle('line-through', isDone);
+        }
+
+        const description = card.querySelector('[data-task-description="true"]');
+        if (description) {
+          description.classList.toggle('line-through', isDone);
+          description.classList.toggle('opacity-70', isDone);
+        }
+
+        const statusIcon = card.querySelector('[data-task-status-icon="true"]');
+        if (statusIcon) {
+          statusIcon.textContent = isDone ? 'check_circle' : 'more_horiz';
+          statusIcon.classList.toggle('text-primary', isDone);
+          statusIcon.classList.toggle('text-slate-300', !isDone);
+        }
+      }
+
+      colIds.forEach(colId => {
+        const el = document.getElementById(colId);
+        if (!el) return;
+
+        new Sortable(el, {
+          group: 'kanban',
+          animation: 200,
+          ghostClass: 'sortable-ghost',
+          chosenClass: 'sortable-chosen',
+          dragClass: 'sortable-drag',
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          filter: '.task-detail-link',
+          preventOnFilter: false,
+
+          onEnd: async function(evt) {
+            const taskId = evt.item.dataset.taskId;
+            const newStatus = evt.to.dataset.status;
+
+            if (newStatus === 'done' && userRole !== 'team_leader') {
+              evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
+              alert('Only the Team Leader can approve tasks (move to Done).');
+              return;
+            }
+
+            // Immediately update column counts
+            updateColumnCounts();
+
+            try {
+              const res = await fetch(`/projects/${projectId}/tasks/${taskId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+              });
+
+              if (!res.ok) {
+                const data = await res.json();
+                alert(data.error || 'Failed to update task');
+                location.reload();
+              } else {
+                const data = await res.json();
+                syncTaskCardState(evt.item, newStatus === 'done');
+                // Sync progress from server response
+                if (data.progress !== undefined) {
+                  updateProgress(data);
+                }
+              }
+            } catch (err) {
+              console.error('Error updating task:', err);
+              location.reload();
+            }
+          }
+        });
+      });
+
+      const searchInput = document.getElementById('searchTasks');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          const query = e.target.value.toLowerCase();
+          document.querySelectorAll('[data-task-id]').forEach(card => {
+            const title = card.querySelector('h3')?.textContent?.toLowerCase() || '';
+            const desc = card.querySelector('p')?.textContent?.toLowerCase() || '';
+            card.style.display = (title.includes(query) || desc.includes(query)) ? '' : 'none';
+          });
+        });
+      }
+    });

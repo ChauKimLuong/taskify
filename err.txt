@@ -1,0 +1,10 @@
+./views/client/pages/project/task-detail.pug:177:40
+    175|                 form(method="POST" action=`/projects/${project.id}/tasks/${task.id}/labels` class="space-y-2 p-3 bg-white border border-slate-200 rounded-[10px] shadow-sm")
+    176|                   input(name="label_name" required placeholder="Tên nhãn..." class="w-full text-sm rounded-lg border-slate-200 px-3 py-2 focus:ring-2 focus:ring-primary/40" maxlength="50")
+  > 177|                   .flex.flex-wrap.gap-1.5
+------------------------------------------------^
+    178|                     each clr in labelColors
+    179|                       label(class="cursor-pointer")
+    180|                         input(type="radio", name="color", value=clr, class="sr-only peer", checked=clr === '#6366f1')
+
+Class names must contain at least one letter or underscore.

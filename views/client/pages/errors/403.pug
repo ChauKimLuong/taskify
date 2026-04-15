@@ -1,0 +1,14 @@
+extends ../../layout-public
+
+block title
+  | #{title} | Taskify
+
+block body
+  .min-h-screen.flex.items-center.justify-center.p-8
+    .text-center.animate-fade-in-up
+      span(class="material-symbols-outlined text-7xl text-slate-300 mb-4") lock
+      h1(class="text-4xl font-extrabold mb-2") 403
+      p(class="text-on-surface-variant mb-6") You don't have permission to access this page.
+      a(href="/dashboard" class="inline-flex items-center gap-2 signature-gradient text-white px-6 py-3 rounded-[10px] font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:opacity-95 transition-all duration-200 active:scale-[0.98]")
+        span(class="material-symbols-outlined text-sm") arrow_back
+        | Back to Dashboard

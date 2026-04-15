@@ -1,0 +1,56 @@
+extends ../../layout-public
+
+block title
+  | #{title} | Taskify
+
+block body
+  .min-h-screen.flex.items-center.justify-center.p-6
+    //- Decorative background blobs
+    div(class="fixed inset-0 overflow-hidden pointer-events-none")
+      div(class="absolute -top-32 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl")
+      div(class="absolute -bottom-32 -right-32 w-96 h-96 bg-secondary-container/10 rounded-full blur-3xl")
+
+    .w-full.max-w-md.relative.z-10.animate-fade-in-up
+      //- Brand
+      .text-center.mb-8
+        a(href="/" class="text-2xl font-bold tracking-tight text-primary font-headline") Taskify
+
+      //- Auth card
+      div(class="bg-surface-container-lowest rounded-2xl p-8 shadow-xl shadow-slate-900/5 border border-outline-variant/10")
+        .text-center.mb-8
+          h1(class="text-2xl font-bold tracking-tight mb-2") Welcome back
+          p(class="text-on-surface-variant text-sm") Log in to continue
+
+        //- Error banner
+        if error === 'invalid_credentials'
+          div(class="mb-6 px-4 py-3 rounded-[10px] bg-error-container/40 border border-error/20 text-on-error-container text-sm flex items-center gap-2 animate-fade-in")
+            span(class="material-symbols-outlined text-lg text-error") error
+            | Sai email hoặc mật khẩu
+
+        form(method="POST" action="/login")
+          .space-y-5
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 font-label") Email
+              input(type="email" name="email" placeholder="you@company.com" required class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all duration-200 placeholder:text-slate-400")
+
+            div
+              label(class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 font-label") Password
+              input(type="password" name="password" placeholder="Enter password" required class="w-full bg-surface-container-low border-none rounded-[10px] px-4 py-3 text-sm focus:ring-2 focus:ring-primary/40 transition-all duration-200 placeholder:text-slate-400")
+
+            button(type="submit" class="w-full py-3.5 signature-gradient text-white font-bold rounded-[10px] shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:opacity-95 transition-all duration-200 active:scale-[0.98]") Log in
+
+        //- Divider
+        div(class="flex items-center gap-4 my-6")
+          div(class="flex-1 h-px bg-outline-variant/20")
+          span(class="text-xs text-on-surface-variant font-medium") Or continue with
+          div(class="flex-1 h-px bg-outline-variant/20")
+
+        //- Google button
+        a(href="/auth/google" class="flex items-center justify-center gap-3 w-full px-4 py-3 bg-surface-container-lowest border border-outline-variant/30 rounded-[10px] text-sm font-semibold text-on-surface hover:bg-surface-container-low hover:border-outline-variant/50 hover:shadow-sm transition-all duration-200 active:scale-[0.98]")
+          img(src="https://developers.google.com/identity/images/g-logo.png" class="w-5 h-5 object-contain")
+          span Continue with Google
+
+        //- Switch link
+        p(class="text-center text-sm text-on-surface-variant mt-6")
+          | Don't have an account?&nbsp;
+          a(href="/sign-up" class="text-primary font-bold hover:underline underline-offset-2 transition-all") Sign up

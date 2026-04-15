@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id            Int      @id @default(autoincrement())
+  full_name     String?  @db.VarChar(255)
+  email         String   @unique @db.VarChar(255)
+  password_hash String
+  avatar_url    String?
+  system_role   String   @default("user") @db.VarChar(50)
+  is_deleted    Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  // Relations
+  created_projects    projects[]          @relation("ProjectCreator")
+  project_memberships project_members[]
+  created_tasks       tasks[]             @relation("TaskCreator")
+  approved_tasks      tasks[]             @relation("TaskApprover")
+  assigned_to_me      task_assignments[]  @relation("Assignee")
+  assigned_by_me      task_assignments[]  @relation("Assigner")
+  comments            comments[]
+  uploaded_files      task_attachments[] @relation("FileUploader")
+}
+
+model projects {
+  id           Int      @id @default(autoincrement())
+  project_name String   @db.VarChar(200)
+  description  String?
+  created_by   Int
+  status       String   @default("active") @db.VarChar(20)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  creator users             @relation("ProjectCreator", fields: [created_by], references: [id])
+  members project_members[]
+  tasks   tasks[]
+}
+
+model project_members {
+  id           Int      @id @default(autoincrement())
+  project_id   Int
+  user_id      Int
+  project_role String   @default("member") @db.VarChar(20)
+  joined_at    DateTime @default(now()) @db.Timestamptz()
+
+  project projects @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  user    users    @relation(fields: [user_id], references: [id])
+
+  @@unique([project_id, user_id])
+  @@index([project_id])
+  @@index([user_id])
+}
+
+model tasks {
+  id          Int       @id @default(autoincrement())
+  project_id  Int
+  title       String    @db.VarChar(300)
+  description String?
+  status      String    @default("todo") @db.VarChar(20)
+  priority    String    @default("medium") @db.VarChar(20)
+  start_date  DateTime? @db.Date
+  due_date    DateTime? @db.Date
+  created_by  Int
+  approved_by Int?
+  approved_at DateTime? @db.Timestamptz()
+  created_at  DateTime  @default(now()) @db.Timestamptz()
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  project  projects           @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  creator  users              @relation("TaskCreator", fields: [created_by], references: [id])
+  approver users?             @relation("TaskApprover", fields: [approved_by], references: [id])
+  assignees    task_assignments[]
+  comments     comments[]
+  labels       task_labels[]
+  attachments  task_attachments[]
+
+  @@index([project_id])
+  @@index([project_id, status])
+}
+
+model task_assignments {
+  id          Int      @id @default(autoincrement())
+  task_id     Int
+  assignee_id Int
+  assigned_by Int
+  assigned_at DateTime @default(now()) @db.Timestamptz()
+
+  task     tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user     users @relation("Assignee", fields: [assignee_id], references: [id])
+  assigner users @relation("Assigner", fields: [assigned_by], references: [id])
+
+  @@unique([task_id, assignee_id])
+  @@index([task_id])
+  @@index([assignee_id])
+}
+
+model comments {
+  id         Int      @id @default(autoincrement())
+  task_id    Int
+  user_id    Int
+  content    String
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  task tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user users @relation(fields: [user_id], references: [id])
+
+  @@index([task_id])
+}
+
+model task_labels {
+  id         Int      @id @default(autoincrement())
+  task_id    Int
+  label_name String   @db.VarChar(50)
+  color      String   @default("#6366f1") @db.VarChar(20)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  task tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+
+  @@index([task_id])
+}
+
+model task_attachments {
+  id          Int      @id @default(autoincrement())
+  task_id     Int
+  file_name   String   @db.VarChar(255)
+  file_url    String
+  file_type   String   @db.VarChar(50)
+  file_size   Int      @default(0)
+  uploaded_by Int
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  task    tasks @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  uploader users @relation("FileUploader", fields: [uploaded_by], references: [id])
+
+  @@index([task_id])
+}
+

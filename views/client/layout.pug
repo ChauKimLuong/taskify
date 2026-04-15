@@ -1,0 +1,149 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="utf-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title
+      block title
+        | Taskify
+    script(src="https://cdn.tailwindcss.com?plugins=forms,container-queries")
+    link(href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet")
+    link(href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet")
+    script.
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#004ac6",
+              "primary-container": "#2563eb",
+              "primary-fixed": "#dbe1ff",
+              "primary-fixed-dim": "#b4c5ff",
+              "on-primary": "#ffffff",
+              "on-primary-container": "#eeefff",
+              "on-primary-fixed": "#00174b",
+              "on-primary-fixed-variant": "#003ea8",
+              "secondary": "#495c95",
+              "secondary-container": "#acbfff",
+              "secondary-fixed": "#dbe1ff",
+              "secondary-fixed-dim": "#b4c5ff",
+              "on-secondary": "#ffffff",
+              "on-secondary-container": "#394c84",
+              "on-secondary-fixed": "#00174b",
+              "on-secondary-fixed-variant": "#31447b",
+              "tertiary": "#943700",
+              "tertiary-container": "#bc4800",
+              "tertiary-fixed": "#ffdbcd",
+              "tertiary-fixed-dim": "#ffb596",
+              "on-tertiary": "#ffffff",
+              "on-tertiary-container": "#ffede6",
+              "on-tertiary-fixed": "#360f00",
+              "on-tertiary-fixed-variant": "#7d2d00",
+              "error": "#ba1a1a",
+              "error-container": "#ffdad6",
+              "on-error": "#ffffff",
+              "on-error-container": "#93000a",
+              "surface": "#f8f9fa",
+              "surface-dim": "#d9dadb",
+              "surface-bright": "#f8f9fa",
+              "surface-tint": "#0053db",
+              "surface-variant": "#e1e3e4",
+              "surface-container": "#edeeef",
+              "surface-container-low": "#f3f4f5",
+              "surface-container-high": "#e7e8e9",
+              "surface-container-highest": "#e1e3e4",
+              "surface-container-lowest": "#ffffff",
+              "background": "#f8f9fa",
+              "on-surface": "#191c1d",
+              "on-surface-variant": "#434655",
+              "on-background": "#191c1d",
+              "outline": "#737686",
+              "outline-variant": "#c3c6d7",
+              "inverse-surface": "#2e3132",
+              "inverse-on-surface": "#f0f1f2",
+              "inverse-primary": "#b4c5ff"
+            },
+            fontFamily: {
+              headline: ["Manrope", "sans-serif"],
+              body: ["Inter", "sans-serif"],
+              label: ["Inter", "sans-serif"]
+            }
+          }
+        }
+      };
+    style.
+      body { font-family: 'Inter', sans-serif; }
+      .font-headline, h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .signature-gradient {
+        background: linear-gradient(135deg, #004ac6 0%, #2563eb 100%);
+      }
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .animate-fade-in-up { animation: fadeInUp 0.4s ease-out both; }
+      .animate-fade-in { animation: fadeIn 0.3s ease-out both; }
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #e1e3e4; border-radius: 10px; }
+      .sortable-ghost { opacity: 0.4; }
+      .sortable-chosen { transform: rotate(2deg); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+      .sortable-drag { opacity: 0.9; }
+    block head
+
+  body(class="bg-surface text-on-surface antialiased")
+    //- ===== SIDEBAR =====
+    aside(class="fixed h-screen w-64 left-0 top-0 flex flex-col p-6 gap-4 bg-surface-container-low z-50")
+      //- Brand
+      .mb-4
+        a(href="/dashboard" class="text-xl font-bold tracking-tight text-primary") Taskify
+
+      //- User profile
+      .flex.items-center.gap-3.mb-6.p-2
+        if user && user.avatar_url
+          img(src=user.avatar_url alt=user.full_name class="w-10 h-10 rounded-[10px] object-cover")
+        else if user
+          .w-10.h-10.rounded-xl.bg-primary.flex.items-center.justify-center.text-white.font-bold.text-sm= user.full_name ? user.full_name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()
+        if user
+          .flex.flex-col.overflow-hidden
+            span.font-semibold.text-sm.truncate= user.full_name || user.email
+            if typeof membership !== 'undefined' && membership
+              span(class="text-xs text-on-surface-variant")= membership.project_role === 'team_leader' ? 'Team Leader' : 'Member'
+            else
+              span(class="text-xs text-on-surface-variant")= user.email
+
+      //- Create project button
+      a(href="/projects/create" class="signature-gradient text-white px-4 py-2.5 rounded-[10px] font-medium text-sm flex items-center justify-center gap-2 hover:opacity-90 hover:shadow-lg hover:shadow-primary/25 transition-all duration-200 mb-4 shadow-md shadow-primary/20")
+        span(class="material-symbols-outlined text-sm") add
+        | Create New Project
+
+      //- Navigation
+      nav.flex-1.space-y-1
+        - var isProjectPage = typeof project !== 'undefined' && project
+        a(href="/dashboard" class=`flex items-center gap-3 px-4 py-2.5 rounded-[10px] font-medium transition-all duration-200 group ${!isProjectPage ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-600 hover:bg-slate-200/60'}`)
+          span(class=`material-symbols-outlined text-xl ${!isProjectPage ? 'text-primary' : 'text-slate-500 group-hover:text-primary'}`) dashboard
+          span(class="text-sm") Dashboard
+        if isProjectPage
+          a(href=`/projects/${project.id}` class="flex items-center gap-3 px-4 py-2.5 bg-primary/10 text-primary rounded-[10px] font-semibold group mt-1")
+            span.material-symbols-outlined.text-xl folder_open
+            span(class="text-sm truncate")= project.project_name || 'Project'
+
+      //- Footer
+      div(class="pt-6 border-t border-outline-variant/15 flex flex-col gap-1")
+        a(href="/logout" class="flex items-center gap-3 px-4 py-2.5 text-slate-600 font-medium hover:bg-red-50 hover:text-red-600 transition-all duration-200 rounded-[10px] group")
+          span(class="material-symbols-outlined text-xl text-slate-500 group-hover:text-red-500") logout
+          span(class="text-sm") Logout
+
+    //- ===== TOP HEADER =====
+    header(class="sticky top-0 h-16 ml-64 flex justify-between items-center px-8 bg-white/80 backdrop-blur-md z-40 border-b border-outline-variant/10")
+      block header-content
+
+    //- ===== MAIN CONTENT =====
+    main(class="ml-64")
+      block content
